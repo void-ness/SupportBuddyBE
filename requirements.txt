@@ -8,3 +8,4 @@ python-dotenv
 google-genai==1.2.0
 typing-extensions
 uvicorn
+gunicorn
