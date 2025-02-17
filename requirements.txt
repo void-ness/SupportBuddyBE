@@ -1,0 +1,10 @@
+Flask
+requests
+numpy
+fastapi==0.103.0
+pydantic
+psycopg2-binary
+python-dotenv
+google-genai==1.2.0
+typing-extensions
+uvicorn
