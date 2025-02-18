@@ -8,7 +8,7 @@ class PredictionInput(BaseModel):
     currentCTC: Optional[float]
     totalYoE: Optional[float]
     designationYoE: Optional[float]
-    performanceRating: Optional[str]
+    performanceRating: Optional[int]
 
 # Output model
 class PredictionOutput(BaseModel):
