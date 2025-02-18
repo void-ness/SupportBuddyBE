@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import uvicorn
+import logging
 
 import os
 from dotenv import load_dotenv
@@ -21,11 +22,15 @@ app.add_middleware(
 # Load environment variables
 load_dotenv()
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Custom exception handler for validation errors
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = []
-    print("exc.errors()", exc.errors())
+    logger.error("exc.errors() %s", exc.errors())
     for error in exc.errors():
         errors.append({
             "field": error["loc"][-1],
