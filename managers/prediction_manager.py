@@ -50,11 +50,19 @@ class PredictionManager:
         from managers import GenAIManager
 
         prompt = (
-            f"An employee working at {data.company} as a {data.designation} with {data.totalYoE} years of total experience, "
-            f"{data.designationYoE} years in the current role, and a performance rating of {data.performanceRating} "
-            f"is being considered for a promotion. The employee's current CTC is {data.currentCTC}. "
-            f"Based on this information, what is the likelihood of the employee getting a promotion, "
-            f"and what would be the expected minimum and maximum salary hike percentages?"
+            f"You are an HR expert with deep knowledge of compensation trends, employee appraisals, and promotion criteria. "
+            f"Evaluate the following employee profile and provide a clear, reasoned assessment:\n\n"
+            f"Company: {data.company}\n"
+            f"Designation: {data.designation}\n"
+            f"Total Years of Experience: {data.totalYoE}\n"
+            f"Years in Current Role: {data.designationYoE}\n"
+            f"Performance Rating (out of 5): {data.performanceRating}\n"
+            f"Employment Type: {data.employmentType} (e.g., Full-time, Contract)\n"
+            f"Current CTC: {data.currentCTC}\n\n"
+            f"The employee is being considered for an annual appraisal and a potential promotion.\n\n"
+            f"Based on industry standards, performance, and experience, answer the following:\n"
+            f"1. What is the likelihood of the employee receiving a promotion?\n"
+            f"2. What is the minimum and maximum expected salary hike percentage?\n"
         )
 
         try:
@@ -65,7 +73,7 @@ class PredictionManager:
                 promotion_likelihood=result.get("promotion_likelihood", True),
                 min_hike=result.get("min_hike", random.randint(5, 10)),
                 max_hike=result.get("max_hike", random.randint(10, 20)),
-                confidence_score=result.get("confidence_score", 0.82)
+                confidence_score=result.get("confidence_score", round(random.uniform(0.5, 1.0), 2))
             )
         except Exception as e:
             logger.error("GenAI prediction failed, falling back to original prediction method: %s", e)
