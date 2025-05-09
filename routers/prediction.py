@@ -28,20 +28,21 @@ async def get_prediction(data: PredictionInput):
         cur.execute("""
             INSERT INTO predictions (
                 company, designation, current_ctc, 
-                total_yoe, designation_yoe, performance_rating
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+                total_yoe, designation_yoe, performance_rating,
+                employment_type
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             data.company, data.designation, data.currentCTC,
-            data.totalYoE, data.designationYoE, data.performanceRating
+            data.totalYoE, data.designationYoE, data.performanceRating,
+            data.employmentType
         ))
 
-        conn.commit()
-        cur.close()
-        conn.close()
+        # Get the ID of the inserted row
+        prediction_id = cur.fetchone()[0]
 
-        # Get prediction
-        # prediction = PredictionManager.predict_promotion(data)
-        
+        conn.commit()
+
         # Map numeric rating to string
         rating_map = {
             1: "Needs Improvement",
@@ -51,7 +52,19 @@ async def get_prediction(data: PredictionInput):
         }
         data.performanceRating = rating_map.get(data.performanceRating, "Meets Expectations")
 
+        # Get prediction
         prediction = await PredictionManager.predict_promotion_with_genai(data)
+
+        # Store the prediction result as JSON in the database
+        cur.execute("""
+            UPDATE predictions
+            SET result = %s
+            WHERE id = %s
+        """, (prediction.json(), prediction_id))
+
+        conn.commit()
+        cur.close()
+        conn.close()
 
         return prediction
     except Exception as e:

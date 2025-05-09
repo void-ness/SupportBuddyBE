@@ -9,6 +9,7 @@ class PredictionInput(BaseModel):
     totalYoE: Optional[float]
     designationYoE: Optional[float]
     performanceRating: Optional[int]
+    employmentType: Optional[str]
 
 # Output model
 class PredictionOutput(BaseModel):
