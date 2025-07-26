@@ -7,7 +7,7 @@ import logging
 
 import os
 from dotenv import load_dotenv
-from routers import prediction
+from routers import journal, auth, notion, scheduler
 
 app = FastAPI()
 
@@ -42,7 +42,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Include the prediction router
-app.include_router(prediction.router)
+app.include_router(journal.router)
+app.include_router(auth.router)
+app.include_router(notion.router)
+app.include_router(scheduler.router)
 
 # Add a ping endpoint
 @app.get("/ping")

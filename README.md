@@ -1,6 +1,6 @@
-# HikeCalc FastAPI Application
+# Journal Help Support Buddy FastAPI Application
 
-This is a FastAPI application for predicting promotions and salary hikes.
+This is a FastAPI application for a journal help support buddy.
 
 ## Prerequisites
 
@@ -13,8 +13,8 @@ This is a FastAPI application for predicting promotions and salary hikes.
 1. **Clone the repository:**
 
     ```sh
-    git clone https://github.com/yourusername/hikecalc.git
-    cd hikecalc/server
+    git clone https://github.com/yourusername/supportbuddy.git
+    cd supportbuddy/backend
     ```
 
 2. **Create and activate a virtual environment:**
@@ -32,7 +32,7 @@ This is a FastAPI application for predicting promotions and salary hikes.
 
 4. **Set up environment variables:**
 
-    Create a [.env](http://_vscodecontentref_/0) file in the root directory and add the following environment variables:
+    Create a .env file in the root directory and add the following environment variables:
 
     ```env
     DB_NAME=your_db_name
@@ -51,22 +51,31 @@ This is a FastAPI application for predicting promotions and salary hikes.
 
 ## Usage
 
-- **Endpoint to predict promotions and salary hikes:**
+- **Endpoint to create a journal entry:**
 
     ```http
-    POST /predict
+    POST /journal/
     ```
 
     **Request Body:**
 
     ```json
     {
-        "company": "tata1mg",
-        "designation": "sde-1",
-        "currentCTC": 10,
-        "totalYoE": 5,
-        "designationYoE": 3,
-        "performanceRating": "4"
+        "content": "Today I had a great day!"
+    }
+    ```
+
+- **Endpoint to generate a motivational message:**
+
+    ```http
+    POST /generate-message/
+    ```
+
+    **Request Body:**
+
+    ```json
+    {
+        "content": "Today I had a great day!"
     }
     ```
 
@@ -74,10 +83,7 @@ This is a FastAPI application for predicting promotions and salary hikes.
 
     ```json
     {
-        "promotion_likelihood": true,
-        "min_hike": 15.0,
-        "max_hike": 25.0,
-        "confidence_score": 0.6
+        "message": "That's wonderful to hear! Keep up the positive energy."
     }
     ```
 
