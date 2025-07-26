@@ -8,3 +8,5 @@ python-jose[cryptography]==3.3.0
 requests==2.32.3
 cryptography==42.0.7
 python-decouple==3.8
+mailgun==1.1.0
+google-genai==1.2.0
