@@ -6,7 +6,7 @@ from managers.notion_manager import NotionManager
 from managers.email_manager import EmailManager
 import logging
 import os
-from os import load_dotenv
+from dotenv import load_dotenv
 load_dotenv()
 
 class EmailRequest(BaseModel):
