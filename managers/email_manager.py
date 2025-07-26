@@ -24,21 +24,21 @@ class EmailManager:
             logger.info(f"-----------------------------")
 
             # Uncomment the following lines to send the actual email
-            # response = requests.post(
-            #     f"https://api.mailgun.net/v3/{mailgun_domain}/messages",
-            #     auth=("api", mailgun_api_key),
-            #     data={
-            #         "from": f"Support Buddy <mailgun@{mailgun_domain}>",
-            #         "to": [to_email],
-            #         "subject": "Your daily motivational message",
-            #         "text": full_message
-            #     }
-            # )
+            response = requests.post(
+                f"https://api.mailgun.net/v3/{mailgun_domain}/messages",
+                auth=("api", mailgun_api_key),
+                data={
+                    "from": f"Jurn AI <help@{mailgun_domain}>",
+                    "to": [to_email],
+                    "subject": "Your daily motivational message",
+                    "text": full_message
+                }
+            )
 
-            # if response.status_code == 200:
-            #     logger.info(f"Email sent to {to_email} for user {user_id}")
-            # else:
-            #     logger.error(f"Failed to send email to {to_email} for user {user_id}: {response.text}")
+            if response.status_code == 200:
+                logger.info(f"Email sent to {to_email} for user {user_id}")
+            else:
+                logger.error(f"Failed to send email to {to_email} for user {user_id}: {response.text}")
 
         except Exception as e:
             logger.error(f"Error sending email to {to_email} for user {user_id}: {e}")

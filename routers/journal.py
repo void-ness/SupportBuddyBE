@@ -49,7 +49,7 @@ async def get_todays_journal():
 @router.post("/send-email/")
 async def send_email(email_request: EmailRequest):
     try:
-        EmailManager.send_motivational_email(email_request.to_email, email_request.message)
+        EmailManager.send_motivational_email(user_id=1, to_email=email_request.to_email, message=email_request.message)
         return {"status": "Email sent"}
     except Exception as e:
         logger.error(f"Error sending email: {e}")
