@@ -14,6 +14,10 @@ class NotionManager:
 
             notion = Client(auth=notion_token)
 
+            # Calculate timestamp for 24 hours ago
+            last_24_hours = datetime.now(timezone.utc) - timedelta(hours=24)
+            last_24_hours_iso = last_24_hours.isoformat()
+
             # Query the database
             response = notion.databases.query(
                 database_id=database_id,
@@ -23,34 +27,40 @@ class NotionManager:
                         "direction": "descending",
                     }
                 ],
+                filter={
+                    "timestamp": "last_edited_time",
+                    "last_edited_time": {
+                        "on_or_after": last_24_hours_iso
+                    }
+                },
                 page_size=1
-            )
-            print(response)
-            
+            )            
             if response["results"]:
                 latest_journal_page = response["results"][0]
                 
-                # Fetch content of the latest journal page
-                content_blocks = notion.blocks.children.list(block_id=latest_journal_page["id"])
-                print(content_blocks)
-                journal_content = ""
-                for block in content_blocks["results"]:
-                    if "paragraph" in block and block["paragraph"]["rich_text"]:
-                        for text_obj in block["paragraph"]["rich_text"]:
-                            journal_content += text_obj["plain_text"]
-                    elif "heading_1" in block and block["heading_1"]["rich_text"]:
-                        for text_obj in block["heading_1"]["rich_text"]:
-                            journal_content += text_obj["plain_text"]
-                    elif "heading_2" in block and block["heading_2"]["rich_text"]:
-                        for text_obj in block["heading_2"]["rich_text"]:
-                            journal_content += text_obj["plain_text"]
-                    elif "heading_3" in block and block["heading_3"]["rich_text"]:
-                        for text_obj in block["heading_3"]["rich_text"]:
-                            journal_content += text_obj["plain_text"]
-                    # Add more block types as needed (e.g., bulleted_list, numbered_list)
+                journal_content = []
+                properties = latest_journal_page["properties"]
 
-                # print(f"Latest journal entry content: {journal_content}")
-                return journal_content
+                # Extract Entry Title
+                entry_title = properties.get('Entry Title', {}).get('title', [])
+                if entry_title:
+                    title_text = entry_title[0].get('plain_text', '')
+                    if title_text:  # Only add if title_text is not empty
+                        journal_content.append(f"Entry Title - {title_text}")
+
+                # Extract rich text properties
+                rich_text_properties = ['Gratitude', 'Highlights', 'Challenges', 'Reflection']
+                for prop_name in rich_text_properties:
+                    prop_data = properties.get(prop_name, {}).get('rich_text', [])
+                    if prop_data:
+                        content_text = "".join([text_obj.get('plain_text', '') for text_obj in prop_data])
+                        if content_text:  # Only add if content_text is not empty
+                            journal_content.append(f"{prop_name} - {content_text}")
+                
+                result = "\n".join(journal_content)
+                if not result.strip():  # Check if the joined string is empty or only contains whitespace
+                    return None
+                return result
             else:
                 return None
 
