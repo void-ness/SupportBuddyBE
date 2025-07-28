@@ -15,7 +15,7 @@ class BatchProcessor:
 
     async def process_notion_users_in_batches(self, batch_size: int = 5):
         logger.info("Starting batch processing for Notion users.")
-        active_notion_users = self.user_manager.get_active_notion_users()
+        active_notion_users = await self.user_manager.get_active_notion_users()
         logger.info(f"Found {len(active_notion_users)} active Notion users.")
 
         if not active_notion_users:
