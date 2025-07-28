@@ -43,7 +43,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Include the required routers
-app.include_router(journal.router)
+if os.getenv("ENV") == "local":
+    app.include_router(journal.router)
 # app.include_router(auth.router)
 app.include_router(notion.router)
 app.include_router(scheduler.router)
