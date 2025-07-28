@@ -19,7 +19,8 @@ class NotionIntegrationManager:
 
     async def get_integration_by_user_id(self, user_id: int) -> Optional[NotionIntegrationPydantic]:
         try:
-            integration = await NotionIntegration.get_or_none(user_id=user_id)
+            integration = await NotionIntegration.filter(user_id=user_id).order_by("-created_at").first()
+            
             if integration:
                 decrypted_access_token = decrypt_data(integration.access_token)
                 integration.access_token = decrypted_access_token # Update the model instance for return

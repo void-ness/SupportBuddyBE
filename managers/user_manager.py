@@ -21,7 +21,7 @@ class UserManager:
 
     async def get_user_by_email(self, email: str) -> Optional[UserPydantic]:
         try:
-            user = await User.get_or_none(email=email)
+            user = await User.filter(email=email).order_by("-created_at").first()
             if user:
                 return user.to_pydantic()
             return None
@@ -55,7 +55,7 @@ class UserManager:
         try:
             user = await User.get(id=user_id)
             user.journal_medium = medium
-            await user.save()
+            await user.save(update_fields=["journal_medium", "updated_at"])
         except DoesNotExist:
             raise Exception(f"User with ID {user_id} not found.")
         except Exception as e:
