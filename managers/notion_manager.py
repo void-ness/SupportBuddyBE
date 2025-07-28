@@ -2,12 +2,25 @@ import os
 from notion_client import AsyncClient
 import logging
 from datetime import datetime, time, timezone, timedelta
+import httpx
+import base64
+
+from managers.notion_integration_manager import NotionIntegrationManager
+from managers.user_manager import UserManager
+from utils.utils import create_access_token # Import create_access_token
 
 logger = logging.getLogger(__name__)
 
 class NotionManager:
-    @staticmethod
-    async def get_latest_journal_entry(notion_token: str, database_id: str):
+    NOTION_CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
+    NOTION_CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
+    NOTION_REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
+
+    def __init__(self):
+        self.notion_integration_manager = NotionIntegrationManager()
+        self.user_manager = UserManager()
+
+    async def get_latest_journal_entry(self, notion_token: str, database_id: str):
         try:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
@@ -67,3 +80,59 @@ class NotionManager:
         except Exception as e:
             logger.error(f"Error fetching from Notion: {e}")
             return None
+
+    async def _exchange_code_for_token(self, auth_code: str) -> dict:
+        client_id = self.NOTION_CLIENT_ID
+        client_secret = self.NOTION_CLIENT_SECRET
+        redirect_uri = self.NOTION_REDIRECT_URI
+
+        if not any([client_id, client_secret, redirect_uri]):
+            raise ValueError("Notion API credentials not configured.")
+        
+        token_url = "https://api.notion.com/v1/oauth/token"
+        auth_string = f"{client_id}:{client_secret}"
+        encoded_auth_string = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+
+        headers = {
+            "Authorization": f"Basic {encoded_auth_string}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
+
+        payload = {
+            "grant_type": "authorization_code",
+            "code": auth_code,
+            "redirect_uri": redirect_uri
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(token_url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return data
+
+    async def handle_notion_authorization(self, auth_code: str):
+        data = await self._exchange_code_for_token(
+            auth_code=auth_code
+        )
+
+        access_token = data.get("access_token")
+        duplicated_template_id = data.get("duplicated_template_id")
+        owner_info = data.get("owner", {})
+        user_email = owner_info.get("user", {}).get("person", {}).get("email")
+
+        if not access_token or not duplicated_template_id or not user_email:
+            raise ValueError("Failed to get access token, duplicated template ID, or user email from Notion.")
+
+        user = await self.user_manager.get_or_create_user_by_email(user_email)
+
+        await self.notion_integration_manager.create_integration(
+            user_id=user.id,
+            access_token=access_token,
+            page_id=duplicated_template_id
+        )
+
+        await self.user_manager.update_user_journal_medium(user.id, "notion")
+
+        app_access_token = create_access_token(data={"sub": str(user.id)})
+        return {"access_token": app_access_token, "token_type": "bearer"}
