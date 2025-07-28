@@ -6,23 +6,19 @@ from utils.database import get_db_connection
 from utils.utils import encrypt_data, decrypt_data
 
 class NotionIntegrationManager:
-    def create_integration(self, user_id: int, access_token: str, page_id: str) -> NotionIntegration:
+    async def create_integration(self, user_id: int, access_token: str, page_id: str) -> NotionIntegration:
         conn = None
-        cur = None
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
+            conn = await get_db_connection()
 
             encrypted_access_token = encrypt_data(access_token)
 
-            cur.execute(
+            result = await conn.fetchrow(
                 """INSERT INTO notion_integrations (user_id, access_token, page_id)
-                   VALUES (%s, %s, %s) RETURNING id, created_at, updated_at""",
-                (user_id, encrypted_access_token, page_id)
+                   VALUES ($1, $2, $3) RETURNING id, created_at, updated_at""",
+                user_id, encrypted_access_token, page_id
             )
-            conn.commit()
 
-            result = cur.fetchone()
             if result:
                 return NotionIntegration(
                     id=result['id'],
@@ -36,23 +32,16 @@ class NotionIntegrationManager:
                 raise Exception("Failed to retrieve new Notion integration ID after insertion.")
 
         except Exception as e:
-            if conn:
-                conn.rollback()
             raise Exception(f"Database error during Notion integration creation: {e}")
         finally:
-            if cur:
-                cur.close()
             if conn:
-                conn.close()
+                await conn.release()
 
-    def get_integration_by_user_id(self, user_id: int) -> Optional[NotionIntegration]:
+    async def get_integration_by_user_id(self, user_id: int) -> Optional[NotionIntegration]:
         conn = None
-        cur = None
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT id, user_id, access_token, page_id, created_at, updated_at FROM notion_integrations WHERE user_id = %s", (user_id,))
-            integration_data = cur.fetchone()
+            conn = await get_db_connection()
+            integration_data = await conn.fetchrow("SELECT id, user_id, access_token, page_id, created_at, updated_at FROM notion_integrations WHERE user_id = $1", user_id)
             print(f"Fetched Notion integration data: {integration_data}")  # Debugging output
             if integration_data:
                 decrypted_access_token = decrypt_data(integration_data["access_token"])
@@ -68,7 +57,5 @@ class NotionIntegrationManager:
         except Exception as e:
             raise Exception(f"Database error fetching Notion integration by user ID: {e}")
         finally:
-            if cur:
-                cur.close()
             if conn:
-                conn.close()
+                await conn.release()

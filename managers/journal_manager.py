@@ -3,7 +3,7 @@ from managers.genai_manager import GenAIManager
 from managers.email_manager import EmailManager
 from managers.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
-# from utils.database import connect_with_neondb
+from utils.database import get_db_connection
 import logging
 import asyncio
 
@@ -15,31 +15,25 @@ class JournalManager:
 
     @staticmethod
     async def create_journal_entry(journal_entry: JournalEntry) -> Journal:
+        conn = None
         try:
-            # conn = connect_with_neondb()
-            # cur = conn.cursor()
+            conn = await get_db_connection()
 
-            # cur.execute(
-            #     """
-            #     INSERT INTO journal_entries (user_id, content)
-            #     VALUES (%s, %s)
-            #     RETURNING id, user_id, content, created_at
-            #     """,
-            #     (journal_entry.user_id, journal_entry.content),
-            # )
-
-            # new_entry_data = cur.fetchone()
-            # conn.commit()
-            # cur.close()
-            # conn.close()
-            new_entry_data = ["1", "2", journal_entry.content, "2023-10-01T12:00:00Z"]  # Mocked data for demonstration
+            new_entry_data = await conn.fetchrow(
+                """
+                INSERT INTO journal_entries (user_id, content)
+                VALUES ($1, $2)
+                RETURNING id, user_id, content, created_at
+                """,
+                journal_entry.user_id, journal_entry.content,
+            )
 
             if new_entry_data:
                 journal = Journal(
-                    id=new_entry_data[0],
-                    user_id=new_entry_data[1],
-                    content=new_entry_data[2],
-                    created_at=new_entry_data[3],
+                    id=new_entry_data['id'],
+                    user_id=new_entry_data['user_id'],
+                    content=new_entry_data['content'],
+                    created_at=new_entry_data['created_at'],
                 )
 
                 # run the message generation asynchronously in background
@@ -54,6 +48,9 @@ class JournalManager:
         except Exception as e:
             logger.error(f"Error creating journal entry: {e}")
             raise
+        finally:
+            if conn:
+                await conn.release()
 
     @staticmethod
     async def generate_motivational_message(journal_content: str) -> str:
@@ -81,16 +78,16 @@ class JournalManager:
 
     async def process_and_email_user_journal(self, user: User):
         try:
-            # 1. Get Notion integration details for the user
-            notion_integration = self.notion_integration_manager.get_integration_by_user_id(user.id)
+            # 1. Get Notion integration details for the user asynchronously
+            notion_integration = await self.notion_integration_manager.get_integration_by_user_id(user.id)
             if not notion_integration:
                 logger.info(f"No Notion integration found for user {user.id}. Skipping.")
                 return {"status": "No Notion integration found", "message": None}
             
             print(f"Notion integration found for user {user.id}: {notion_integration}")  # Debugging output
 
-            # 2. Fetch latest journal entry from Notion using user's credentials
-            journal_content = NotionManager.get_latest_journal_entry(
+            # 2. Fetch latest journal entry from Notion using user's credentials asynchronously
+            journal_content = await NotionManager.get_latest_journal_entry(
                 notion_token=notion_integration.access_token,
                 database_id=notion_integration.page_id
             )
@@ -101,11 +98,11 @@ class JournalManager:
                 logger.info(f"No journal entry found for user {user.id} from the last 24 hours.")
                 return {"status": "No journal entry found from the last 24 hours.", "message": None}
 
-            # 3. Generate motivational message
+            # 3. Generate motivational message asynchronously
             motivational_message = await JournalManager.generate_motivational_message(journal_content)
             
-            # 4. Send email to the user
-            EmailManager.send_motivational_email(user.id, user.email, motivational_message, greeting="Hey,", salutation="Good morning!")
+            # 4. Send email to the user asynchronously
+            await EmailManager.send_motivational_email(user.id, user.email, motivational_message, greeting="Hey,", salutation="Good morning!")
 
             logger.info(f"Successfully processed and emailed journal for user {user.id} ({user.email})")
             return {"status": "Journal processed and email sent", "message": motivational_message}
