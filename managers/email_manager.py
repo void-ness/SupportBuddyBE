@@ -1,12 +1,12 @@
 import os
-import requests
+import httpx
 import logging
 
 logger = logging.getLogger(__name__)
 
 class EmailManager:
     @staticmethod
-    def send_motivational_email(user_id: int, to_email: str, message: str, greeting: str = "Hey,", salutation: str = "Good morning!"):
+    async def send_motivational_email(user_id: int, to_email: str, message: str, greeting: str = "Hey,", salutation: str = "Good morning!"):
         full_message = f"{greeting}\n\n{message}\n\n{salutation}"
         try:
             logger.info(f"Attempting to send email for user {user_id} to {to_email}")
@@ -24,16 +24,17 @@ class EmailManager:
             logger.info(f"-----------------------------")
 
             # Uncomment the following lines to send the actual email
-            response = requests.post(
-                f"https://api.mailgun.net/v3/{mailgun_domain}/messages",
-                auth=("api", mailgun_api_key),
-                data={
-                    "from": f"Jurn AI <help@{mailgun_domain}>",
-                    "to": [to_email],
-                    "subject": "Your daily motivational message",
-                    "text": full_message
-                }
-            )
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"https://api.mailgun.net/v3/{mailgun_domain}/messages",
+                    auth=("api", mailgun_api_key),
+                    data={
+                        "from": f"Jurn AI <help@{mailgun_domain}>",
+                        "to": [to_email],
+                        "subject": "Your daily motivational message",
+                        "text": full_message
+                    }
+                )
 
             if response.status_code == 200:
                 logger.info(f"Email sent to {to_email} for user {user_id}")

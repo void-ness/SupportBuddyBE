@@ -1,12 +1,11 @@
 fastapi==0.111.0
 python-dotenv==1.0.1
 uvicorn==0.30.1
-psycopg2-binary==2.9.9
 notion-client==2.1.0
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
-requests==2.32.3
 cryptography==42.0.7
 python-decouple==3.8
-mailgun
+httpx
 google-genai
+asyncpg
