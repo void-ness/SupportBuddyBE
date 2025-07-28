@@ -41,9 +41,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"errors": errors},
     )
 
-# Include the prediction router
+# Include the required routers
 app.include_router(journal.router)
-app.include_router(auth.router)
+# app.include_router(auth.router)
 app.include_router(notion.router)
 app.include_router(scheduler.router)
 
