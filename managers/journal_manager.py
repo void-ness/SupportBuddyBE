@@ -89,7 +89,7 @@ class JournalManager:
             # print(f"Notion integration found for user {user.id}: {notion_integration}")  # Debugging output
 
             # 2. Fetch latest journal entry from Notion using user's credentials asynchronously
-            journal_content = await NotionManager.get_latest_journal_entry(
+            journal_content = await NotionManager().get_latest_journal_entry(
                 notion_token=notion_integration.access_token,
                 database_id=notion_integration.page_id
             )
