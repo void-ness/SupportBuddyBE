@@ -21,7 +21,32 @@ class Message(BaseModel):
     message: str
     sent_at: datetime
 
-class User(BaseModel):
+class User(models.Model):
+    id = fields.IntField(pk=True)
+    username = fields.CharField(max_length=255, null=True)
+    email = fields.CharField(max_length=255, unique=True)
+    hashed_password = fields.CharField(max_length=255, null=True)
+    is_active = fields.BooleanField(default=True)
+    journal_medium = fields.CharField(max_length=50, default="web")
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "users"
+
+    def to_pydantic(self) -> "UserPydantic":
+        return UserPydantic(
+            id=self.id,
+            username=self.username,
+            email=self.email,
+            hashed_password=self.hashed_password,
+            is_active=self.is_active,
+            journal_medium=self.journal_medium,
+            created_at=self.created_at,
+            updated_at=self.updated_at
+        )
+
+class UserPydantic(BaseModel):
     id: Optional[int] = None
     username: Optional[str] = None
     email: str

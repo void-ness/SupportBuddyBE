@@ -1,142 +1,69 @@
 from typing import Optional
-from psycopg2.errors import UniqueViolation
 
-from models.models import User
-from utils.database import get_db_connection
+from models.models import User, UserPydantic
+from tortoise.exceptions import DoesNotExist, IntegrityError
 
 class UserManager:
-    def create_user(self, user_data: User) -> User:
-        conn = None
-        cur = None
+    async def create_user(self, user_data: UserPydantic) -> UserPydantic:
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-
-            print(f"Creating user with data: {user_data}")
-            cur.execute(
-                """INSERT INTO users (username, email, hashed_password, is_active, journal_medium)
-                   VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at, updated_at""",
-                (user_data.username, user_data.email, user_data.hashed_password, user_data.is_active, user_data.journal_medium)
+            user = await User.create(
+                username=user_data.username,
+                email=user_data.email,
+                hashed_password=user_data.hashed_password,
+                is_active=user_data.is_active,
+                journal_medium=user_data.journal_medium
             )
-            conn.commit()
+            return user.to_pydantic()
+        except IntegrityError:
+            raise Exception("User with this email already exists.")
+        except Exception as e:
+            raise Exception(f"Database error during user creation: {e}")
 
-            result = cur.fetchone()
-            if result:
-                return User(
-                    id=result['id'],
-                    username=user_data.username,
-                    email=user_data.email,
-                    hashed_password=user_data.hashed_password,
-                    is_active=user_data.is_active,
-                    journal_medium=user_data.journal_medium,
-                    created_at=result['created_at'],
-                    updated_at=result['updated_at']
-                )
-            else:
-                raise Exception("Failed to retrieve new user ID after insertion.")
-
-        except UniqueViolation:
-            if conn:
-                conn.rollback()
-            # Re-raise the specific exception to be handled by the router
-            raise
-        except Exception:
-            if conn:
-                conn.rollback()
-            # Re-raise the exception, which will be logged by the cursor
-            raise
-        finally:
-            if cur:
-                cur.close()
-            if conn:
-                conn.close()
-
-    def get_user_by_email(self, email: str) -> Optional[User]:
-        conn = None
-        cur = None
+    async def get_user_by_email(self, email: str) -> Optional[UserPydantic]:
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT id, username, email, hashed_password, is_active, journal_medium, created_at, updated_at FROM users WHERE email = %s", (email,))
-            user_data = cur.fetchone()
-            if user_data:
-                return User(**user_data)
+            user = await User.get_or_none(email=email)
+            if user:
+                return user.to_pydantic()
             return None
-        except Exception:
-            raise
-        finally:
-            if cur:
-                cur.close()
-            if conn:
-                conn.close()
+        except Exception as e:
+            raise Exception(f"Database error fetching user by email: {e}")
 
-    def get_or_create_user_by_email(self, email: str) -> User:
-        user = self.get_user_by_email(email)
-        if False:
-        # if user:
-            #testing. revert later
+    async def get_or_create_user_by_email(self, email: str) -> UserPydantic:
+        user = await self.get_user_by_email(email)
+        if user:
             return user
         else:
-            # Create a new user with default values for Notion integration
-            new_user_data = User(
+            new_user_data = UserPydantic(
                 email=email,
-                username=None,  # No username for Notion-only users
-                hashed_password=None, # No password for Notion-only users
+                username=None,
+                hashed_password=None,
                 is_active=True,
-                journal_medium="notion" # Default to notion for this flow
+                journal_medium="notion"
             )
-            return self.create_user(new_user_data)
+            return await self.create_user(new_user_data)
 
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
-        conn = None
-        cur = None
+    async def get_user_by_id(self, user_id: int) -> Optional[UserPydantic]:
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT id, username, email, hashed_password, is_active, journal_medium, created_at, updated_at FROM users WHERE id = %s", (user_id,))
-            user_data = cur.fetchone()
-            if user_data:
-                return User(**user_data)
+            user = await User.get_or_none(id=user_id)
+            if user:
+                return user.to_pydantic()
             return None
-        except Exception:
-            raise
-        finally:
-            if cur:
-                cur.close()
-            if conn:
-                conn.close()
+        except Exception as e:
+            raise Exception(f"Database error fetching user by ID: {e}")
 
-    def update_user_journal_medium(self, user_id: int, medium: str):
-        conn = None
-        cur = None
+    async def update_user_journal_medium(self, user_id: int, medium: str):
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("UPDATE users SET journal_medium = %s WHERE id = %s", (medium, user_id))
-            conn.commit()
-        except Exception:
-            if conn:
-                conn.rollback()
-            raise
-        finally:
-            if cur:
-                cur.close()
-            if conn:
-                conn.close()
+            user = await User.get(id=user_id)
+            user.journal_medium = medium
+            await user.save()
+        except DoesNotExist:
+            raise Exception(f"User with ID {user_id} not found.")
+        except Exception as e:
+            raise Exception(f"Database error updating user journal medium: {e}")
 
-    def get_active_notion_users(self) -> list[User]:
-        conn = None
-        cur = None
+    async def get_active_notion_users(self) -> list[UserPydantic]:
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT id, username, email, hashed_password, is_active, journal_medium, created_at, updated_at FROM users WHERE is_active = TRUE AND journal_medium = %s", ('notion',))
-            users_data = cur.fetchall()
-            return [User(**user_data) for user_data in users_data]
-        except Exception:
-            raise
-        finally:
-            if cur:
-                cur.close()
-            if conn:
-                conn.close()
+            users = await User.filter(is_active=True, journal_medium="notion")
+            return [user.to_pydantic() for user in users]
+        except Exception as e:
+            raise Exception(f"Database error fetching active Notion users: {e}")
