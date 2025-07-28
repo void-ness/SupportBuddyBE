@@ -1,6 +1,5 @@
 from typing import Optional
 from fastapi import HTTPException, status
-from psycopg2.errors import UniqueViolation
 
 from models.models import User
 from managers.user_manager import UserManager
@@ -23,8 +22,8 @@ class AuthManager:
             new_user = self.user_manager.create_user(user_data)
             access_token = create_access_token(data={"sub": str(new_user.id)})
             return {"access_token": access_token, "token_type": "bearer"}
-        except UniqueViolation:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User with this email or username already exists.")
+        # except UniqueViolation:
+        #     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User with this email or username already exists.")
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An error occurred during signup: {e}")
 
