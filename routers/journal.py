@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from models.models import JournalEntry, Journal
 from managers.journal_manager import JournalManager
 from managers.notion_manager import NotionManager
+from managers.notion_integration_manager import NotionIntegrationManager
 from managers.email_manager import EmailManager
 import logging
 import os
@@ -35,9 +36,16 @@ async def generate_message(journal_entry: JournalEntry):
         raise HTTPException(status_code=500, detail="Failed to generate message.")
 
 @router.get("/journal/today")
-async def get_todays_journal():
+async def get_todays_journal(user_id: int = 1):
     try:
-        content = NotionManager.get_latest_journal_entry()
+        integration = NotionIntegrationManager().get_integration_by_user_id(user_id)
+        if not integration:
+            raise HTTPException(status_code=404, detail="Notion integration not found for this user.")
+        
+        content = NotionManager.get_latest_journal_entry(
+            notion_token=integration.access_token,
+            database_id=integration.page_id
+        )
         if content:
             return {"content": content}
         else:
@@ -56,9 +64,10 @@ async def send_email(email_request: EmailRequest):
         raise HTTPException(status_code=500, detail="Failed to send email.")
 
 @router.get("/test-notion-fetch")
-async def test_notion_fetch():
+async def test_notion_fetch(user_id: int):
     try:
-        content = NotionManager.get_latest_journal_entry()
+        integration = NotionIntegrationManager().get_integration_by_user_id(user_id)
+        content = NotionManager.get_latest_journal_entry(notion_token=integration.access_token, database_id=integration.page_id)
         if content:
             return {"notion_content": content}
         else:

@@ -92,7 +92,7 @@ class JournalManager:
             # 2. Fetch latest journal entry from Notion using user's credentials
             journal_content = NotionManager.get_latest_journal_entry(
                 notion_token=notion_integration.access_token,
-                parent_page_id=notion_integration.page_id
+                database_id=notion_integration.page_id
             )
 
             print(f"Fetched journal content: {journal_content}")  # Debugging output

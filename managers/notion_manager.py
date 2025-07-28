@@ -7,47 +7,32 @@ logger = logging.getLogger(__name__)
 
 class NotionManager:
     @staticmethod
-    def get_latest_journal_entry(notion_token: str, parent_page_id: str):
+    def get_latest_journal_entry(notion_token: str, database_id: str):
         try:
-            if not notion_token or not parent_page_id:
-                raise Exception("Notion token or parent page ID not provided.")
+            if not notion_token or not database_id:
+                raise Exception("Notion token or database ID not provided.")
 
             notion = Client(auth=notion_token)
 
-            def _normalize_id(notion_id: str) -> str:
-                return notion_id.replace("-", "")
-
-            # Use notion.search to find the latest child page
-            response = notion.search(
-                filter={
-                    "property": "object",
-                    "value": "page"
-                },
-                sort={
-                    "direction": "descending",
-                    "timestamp": "last_edited_time"
-                },
+            # Query the database
+            response = notion.databases.query(
+                database_id=database_id,
+                sorts=[
+                    {
+                        "timestamp": "last_edited_time",
+                        "direction": "descending",
+                    }
+                ],
                 page_size=1
             )
-
-            latest_journal_page = None
-            if response["results"]:
-                # Check if the found page is a child of the specified parent_page_id
-                # and if it was created within the last 24 hours.
-                page_details = response["results"][0]
-                
-                # Ensure it's a child of the correct parent page
-                if page_details.get("parent") and page_details["parent"].get("type") == "page_id" and _normalize_id(page_details["parent"]["page_id"]) == _normalize_id(parent_page_id):
-                    created_time_str = page_details.get("created_time")
-                    if created_time_str:
-                        created_time = datetime.fromisoformat(created_time_str.replace('Z', '+00:00'))
-                        time_24_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
-                        if created_time > time_24_hours_ago:
-                            latest_journal_page = page_details
+            print(response)
             
-            if latest_journal_page:
+            if response["results"]:
+                latest_journal_page = response["results"][0]
+                
                 # Fetch content of the latest journal page
                 content_blocks = notion.blocks.children.list(block_id=latest_journal_page["id"])
+                print(content_blocks)
                 journal_content = ""
                 for block in content_blocks["results"]:
                     if "paragraph" in block and block["paragraph"]["rich_text"]:
