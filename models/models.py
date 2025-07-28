@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
+from tortoise import fields, models
 
 class JournalEntry(BaseModel):
     content: str
@@ -30,7 +31,28 @@ class User(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-class NotionIntegration(BaseModel):
+class NotionIntegration(models.Model):
+    id = fields.IntField(pk=True)
+    user_id = fields.IntField(unique=True)
+    access_token = fields.TextField()
+    page_id = fields.TextField()
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "notion_integrations"
+
+    def to_pydantic(self) -> "NotionIntegrationPydantic":
+        return NotionIntegrationPydantic(
+            id=self.id,
+            user_id=self.user_id,
+            access_token=self.access_token,
+            page_id=self.page_id,
+            created_at=self.created_at,
+            updated_at=self.updated_at
+        )
+
+class NotionIntegrationPydantic(BaseModel):
     id: Optional[int] = None
     user_id: int
     access_token: str

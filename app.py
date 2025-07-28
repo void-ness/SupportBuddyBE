@@ -8,6 +8,7 @@ import logging
 import os
 from dotenv import load_dotenv
 from routers import journal, auth, notion, scheduler
+from utils.database import init_db, close_db_connection_pool
 
 app = FastAPI()
 
@@ -55,6 +56,14 @@ async def ping():
 @app.get("/")
 async def root():
     return {"message": "Welcome to my FastAPI app!"}
+
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await close_db_connection_pool()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
