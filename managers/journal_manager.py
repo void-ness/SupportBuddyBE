@@ -3,7 +3,7 @@ from managers.genai_manager import GenAIManager
 from managers.email_manager import EmailManager
 from managers.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
-from utils.database import get_db_connection
+# from utils.database import get_db_connection
 import logging
 import asyncio
 
@@ -13,6 +13,7 @@ class JournalManager:
     def __init__(self):
         self.notion_integration_manager = NotionIntegrationManager()
 
+    #todo - refactor this to use async database connection of tortoise ORM
     @staticmethod
     async def create_journal_entry(journal_entry: JournalEntry) -> Journal:
         conn = None
@@ -64,7 +65,7 @@ class JournalManager:
                 base_prompt = f.read()
             prompt = f"{base_prompt} {journal_content}"
             message = await GenAIManager.generate(prompt)
-            print(f"Generated message: {message}")  # Debugging output
+            # print(f"Generated message: {message}")  # Debugging output
             return message
         except Exception as e:
             logger.error(f"Error generating motivational message: {e}")
@@ -84,7 +85,7 @@ class JournalManager:
                 logger.info(f"No Notion integration found for user {user.id}. Skipping.")
                 return {"status": "No Notion integration found", "message": None}
             
-            print(f"Notion integration found for user {user.id}: {notion_integration}")  # Debugging output
+            # print(f"Notion integration found for user {user.id}: {notion_integration}")  # Debugging output
 
             # 2. Fetch latest journal entry from Notion using user's credentials asynchronously
             journal_content = await NotionManager.get_latest_journal_entry(
@@ -92,7 +93,7 @@ class JournalManager:
                 database_id=notion_integration.page_id
             )
 
-            print(f"Fetched journal content: {journal_content}")  # Debugging output
+            # print(f"Fetched journal content: {journal_content}")  # Debugging output
 
             if not journal_content:
                 logger.info(f"No journal entry found for user {user.id} from the last 24 hours.")
