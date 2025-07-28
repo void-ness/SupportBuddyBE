@@ -1,5 +1,5 @@
 import os
-from notion_client import Client
+from notion_client import AsyncClient
 import logging
 from datetime import datetime, time, timezone, timedelta
 
@@ -7,19 +7,19 @@ logger = logging.getLogger(__name__)
 
 class NotionManager:
     @staticmethod
-    def get_latest_journal_entry(notion_token: str, database_id: str):
+    async def get_latest_journal_entry(notion_token: str, database_id: str):
         try:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
 
-            notion = Client(auth=notion_token)
+            notion = AsyncClient(auth=notion_token)
 
             # Calculate timestamp for 24 hours ago
             last_24_hours = datetime.now(timezone.utc) - timedelta(hours=24)
             last_24_hours_iso = last_24_hours.isoformat()
 
             # Query the database
-            response = notion.databases.query(
+            response = await notion.databases.query(
                 database_id=database_id,
                 sorts=[
                     {
