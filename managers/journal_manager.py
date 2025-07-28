@@ -8,6 +8,7 @@ import logging
 import asyncio
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class JournalManager:
     def __init__(self):
