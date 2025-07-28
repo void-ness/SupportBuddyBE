@@ -66,8 +66,8 @@ async def send_email(email_request: EmailRequest):
 @router.get("/test-notion-fetch")
 async def test_notion_fetch(user_id: int):
     try:
-        integration = NotionIntegrationManager().get_integration_by_user_id(user_id)
-        content = NotionManager.get_latest_journal_entry(notion_token=integration.access_token, database_id=integration.page_id)
+        integration = await NotionIntegrationManager().get_integration_by_user_id(user_id)
+        content = await NotionManager.get_latest_journal_entry(notion_token=integration.access_token, database_id=integration.page_id)
         if content:
             return {"notion_content": content}
         else:
