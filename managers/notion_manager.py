@@ -121,8 +121,14 @@ class NotionManager:
         owner_info = data.get("owner", {})
         user_email = owner_info.get("user", {}).get("person", {}).get("email")
 
-        if not access_token or not duplicated_template_id or not user_email:
-            raise ValueError("Failed to get access token, duplicated template ID, or user email from Notion.")
+        if not access_token:
+            raise ValueError("Failed to get access token from Notion.")
+
+        if not duplicated_template_id:
+            raise ValueError("Failed to get template ID from Notion. Please select duplicate the template while authenticating with Notion.")
+
+        if not user_email:
+            raise ValueError("Failed to get user email from Notion.")
 
         user = await self.user_manager.get_or_create_user_by_email(user_email)
 
@@ -131,8 +137,6 @@ class NotionManager:
             access_token=access_token,
             page_id=duplicated_template_id
         )
-
-        await self.user_manager.update_user_journal_medium(user.id, "notion")
 
         app_access_token = create_access_token(data={"sub": str(user.id)})
         return {"access_token": app_access_token, "token_type": "bearer"}
