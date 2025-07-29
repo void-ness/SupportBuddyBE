@@ -82,34 +82,41 @@ class NotionManager:
             return None
 
     async def _exchange_code_for_token(self, auth_code: str) -> dict:
-        client_id = self.NOTION_CLIENT_ID
-        client_secret = self.NOTION_CLIENT_SECRET
-        redirect_uri = self.NOTION_REDIRECT_URI
+        try:
+            client_id = self.NOTION_CLIENT_ID
+            client_secret = self.NOTION_CLIENT_SECRET
+            redirect_uri = self.NOTION_REDIRECT_URI
 
-        if not any([client_id, client_secret, redirect_uri]):
-            raise ValueError("Notion API credentials not configured.")
-        
-        token_url = "https://api.notion.com/v1/oauth/token"
-        auth_string = f"{client_id}:{client_secret}"
-        encoded_auth_string = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+            if not any([client_id, client_secret, redirect_uri]):
+                raise ValueError("Notion API credentials not configured.")
+            
+            token_url = "https://api.notion.com/v1/oauth/token"
+            auth_string = f"{client_id}:{client_secret}"
+            encoded_auth_string = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
 
-        headers = {
-            "Authorization": f"Basic {encoded_auth_string}",
-            "Content-Type": "application/json",
-            "Notion-Version": "2022-06-28"
-        }
+            headers = {
+                "Authorization": f"Basic {encoded_auth_string}",
+                "Content-Type": "application/json",
+                "Notion-Version": "2022-06-28"
+            }
 
-        payload = {
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "redirect_uri": redirect_uri
-        }
+            payload = {
+                "grant_type": "authorization_code",
+                "code": auth_code,
+                "redirect_uri": redirect_uri
+            }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(token_url, headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            return data
+            async with httpx.AsyncClient() as client:
+                response = await client.post(token_url, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return data
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Notion API response error: {e.response.status_code} - {e.response.text}")
+            raise Exception("Failed to authenticate with Notion. Please try again later.")
+        except Exception as e:
+            logger.exception(f"Error while authorizing with Notion: {str(e)}")
+            raise Exception("Failed to authenticate with Notion. Please try again later.")
 
     async def handle_notion_authorization(self, auth_code: str):
         data = await self._exchange_code_for_token(

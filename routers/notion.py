@@ -24,5 +24,5 @@ async def authorize_notion(auth_code: NotionAuthCode):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"An unexpected error occurred during Notion authorization: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected internal server error occurred.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An unexpected error occurred during authorization. Please try again later.")
 
