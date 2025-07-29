@@ -66,6 +66,6 @@ async def startup_event():
 async def shutdown_event():
     await close_db_connection_pool()
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="localhost", port=port)
+# if __name__ == "__main__":
+#     port = int(os.getenv("PORT", 8000))
+#     uvicorn.run(app, host="localhost", port=port)
