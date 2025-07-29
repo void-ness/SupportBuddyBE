@@ -10,3 +10,4 @@ httpx
 google-genai
 asyncpg
 tortoise-orm
+hypercorn
