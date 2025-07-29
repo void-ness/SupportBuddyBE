@@ -7,10 +7,11 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-class GenAIManager:   
+class GenAIManager:
     @classmethod
     async def generate(cls, prompt: str, system_prompt: str = None):
         api_key = os.getenv('GOOGLE_GENAI_API_KEY')
+        model_name = os.getenv('GOOGLE_GENAI_MODEL', 'gemini-2.5-flash') # Use env variable
         client = Client(api_key=api_key)
 
         config = None
@@ -20,7 +21,7 @@ class GenAIManager:
             )
 
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model=model_name,
             contents=[prompt],
             config=config,
         )
