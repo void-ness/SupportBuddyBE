@@ -1,23 +1,27 @@
 from google import genai
-from google.genai import Client, types
-from google.genai.types import Content
+from google.genai import Client
+from google.genai.types import GenerateContentConfig
 import os
 from dotenv import load_dotenv
-
-# from models import PredictionOutput
 
 # Load environment variables
 load_dotenv()
 
-# class PredictionOut
-
 class GenAIManager:   
     @classmethod
-    async def generate(cls, prompt: str):
+    async def generate(cls, prompt: str, system_prompt: str = None):
         api_key = os.getenv('GOOGLE_GENAI_API_KEY')
         client = Client(api_key=api_key)
+
+        config = None
+        if system_prompt:
+            config = GenerateContentConfig(
+                system_instruction=[system_prompt]
+            )
+
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=[prompt],
+            config=config,
         )
         return response.text

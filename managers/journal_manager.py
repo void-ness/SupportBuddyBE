@@ -64,9 +64,12 @@ class JournalManager:
                 journal_content = journal_content[:MAX_JOURNAL_LENGTH] + "... [Journal truncated]"
 
             with open("prompts/journal_prompt.md", "r") as f:
-                base_prompt = f.read()
-            prompt = f"{base_prompt} {journal_content}"
-            message = await GenAIManager.generate(prompt)
+                system_prompt = f.read()
+            
+            message = await GenAIManager.generate(
+                prompt=journal_content, 
+                system_prompt=system_prompt
+            )
             # print(f"Generated message: {message}")  # Debugging output
             return message
         except Exception as e:
