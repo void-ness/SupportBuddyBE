@@ -11,3 +11,5 @@ google-genai
 asyncpg
 tortoise-orm
 hypercorn
+fastapi-limiter
+redis
