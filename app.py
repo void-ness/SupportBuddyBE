@@ -85,13 +85,20 @@ async def shutdown_event():
 async def not_found_rate_limit_middleware(request: Request, call_next):
     response = await call_next(request)
     if response.status_code == 404:
-        client_ip = request.client.host
+        # Custom identifier for 404 routes
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            ip = forwarded.split(",")[0]
+        else:
+            ip = request.client.host
+        client_identifier = f"{ip}"
+
         times = int(os.getenv("RATE_LIMIT_404_TIMES", 5))
         seconds = int(os.getenv("RATE_LIMIT_404_SECONDS", 60))
         
         # Manually check rate limit for 404s using a distinct key
         redis_client = FastAPILimiter.redis
-        key = f"404_limit:{client_ip}"
+        key = f"404_limit:{client_identifier}"
         current_count = await redis_client.incr(key)
         if current_count == 1:
             await redis_client.expire(key, seconds)
