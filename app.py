@@ -1,12 +1,18 @@
+import os
+import logging
+from dotenv import load_dotenv
+from utils.logging_config import setup_logging
+
+# Set up logging as the very first thing
+load_dotenv()
+setup_logging()
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import uvicorn
-import logging
 
-import os
-from dotenv import load_dotenv
 from routers import journal, auth, notion, scheduler
 from utils.database import init_db, close_db_connection_pool
 
@@ -20,11 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load environment variables
-load_dotenv()
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Get a logger for the current module
 logger = logging.getLogger(__name__)
 
 # Custom exception handler for validation errors
