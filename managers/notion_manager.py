@@ -137,7 +137,7 @@ class NotionManager:
         if not user_email:
             raise ValueError("Failed to get user email from Notion.")
 
-        user = await self.user_manager.get_or_create_user_by_email(user_email)
+        user, created = await self.user_manager.get_or_create_user_by_email(user_email)
 
         await self.notion_integration_manager.create_integration(
             user_id=user.id,
@@ -146,4 +146,8 @@ class NotionManager:
         )
 
         app_access_token = create_access_token(data={"sub": str(user.id)})
-        return {"access_token": app_access_token, "token_type": "bearer"}
+        return {
+            "access_token": app_access_token, 
+            "token_type": "bearer",
+            "existing_user": not created
+        }

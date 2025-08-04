@@ -29,10 +29,16 @@ class UserManager:
         except Exception as e:
             raise Exception(f"Database error fetching user by email: {e}")
 
-    async def get_or_create_user_by_email(self, email: str) -> UserPydantic:
+    async def get_or_create_user_by_email(self, email: str) -> (UserPydantic, bool):
+        """
+        Gets a user by email or creates a new one if they don't exist.
+        
+        Returns:
+            A tuple containing the user object and a boolean (True if created, False if existed).
+        """
         user = await self.get_user_by_email(email)
         if user:
-            return user
+            return user, False
         else:
             new_user_data = UserPydantic(
                 email=email,
@@ -41,7 +47,8 @@ class UserManager:
                 is_active=True,
                 journal_medium="notion"
             )
-            return await self.create_user(new_user_data)
+            created_user = await self.create_user(new_user_data)
+            return created_user, True
 
     async def get_user_by_id(self, user_id: int) -> Optional[UserPydantic]:
         try:
