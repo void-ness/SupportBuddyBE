@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 
 from models.models import User, UserPydantic
 from tortoise.exceptions import DoesNotExist, IntegrityError
@@ -68,9 +69,29 @@ class UserManager:
         except Exception as e:
             raise Exception(f"Database error updating user journal medium: {e}")
 
-    async def get_active_notion_users(self) -> list[UserPydantic]:
+    async def get_active_notion_users(self) -> list[User]:
         try:
             users = await User.filter(is_active=True, journal_medium="notion")
-            return [user.to_pydantic() for user in users]
+            return users
         except Exception as e:
             raise Exception(f"Database error fetching active Notion users: {e}")
+
+    async def deactivate_long_inactive_users(self, inactivity_threshold: int) -> int:
+        """
+        Deactivates users who have been inactive for a specified number of days using a single update query.
+        
+        Args:
+            inactivity_threshold: The number of days of inactivity to trigger deactivation.
+            
+        Returns:
+            The number of users deactivated.
+        """
+        try:
+            rows_affected = await User.filter(
+                is_active=True,
+                inactive_days_counter__gte=inactivity_threshold
+            ).update(is_active=False, updated_at=datetime.utcnow())
+            
+            return rows_affected
+        except Exception as e:
+            raise Exception(f"Database error during user deactivation: {e}")

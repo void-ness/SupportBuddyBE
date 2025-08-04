@@ -27,6 +27,7 @@ class User(models.Model):
     email = fields.CharField(max_length=255, unique=True)
     hashed_password = fields.CharField(max_length=255, null=True)
     is_active = fields.BooleanField(default=True)
+    inactive_days_counter = fields.IntField(default=0)
     journal_medium = fields.CharField(max_length=50, default="web")
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
@@ -41,6 +42,7 @@ class User(models.Model):
             email=self.email,
             hashed_password=self.hashed_password,
             is_active=self.is_active,
+            inactive_days_counter=self.inactive_days_counter,
             journal_medium=self.journal_medium,
             created_at=self.created_at,
             updated_at=self.updated_at
@@ -52,6 +54,7 @@ class UserPydantic(BaseModel):
     email: str
     hashed_password: Optional[str] = None
     is_active: bool = True
+    inactive_days_counter: int = 0
     journal_medium: str = "web"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
