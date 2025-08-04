@@ -101,8 +101,16 @@ class JournalManager:
             # print(f"Fetched journal content: {journal_content}")  # Debugging output
 
             if not journal_content:
-                logger.info(f"No journal entry found for user {user.id} from the last 24 hours.")
+                user.inactive_days_counter += 1
+                await user.save(update_fields=["inactive_days_counter", "updated_at"])
+                logger.info(f"No journal entry for user {user.id} from the last 24 hours. Incremented inactive counter to {user.inactive_days_counter}.")
                 return {"status": "No journal entry found from the last 24 hours.", "message": None}
+
+            # If content is found, reset the counter if it's not already zero
+            if user.inactive_days_counter > 0:
+                user.inactive_days_counter = 0
+                await user.save(update_fields=["inactive_days_counter", "updated_at"])
+                logger.info(f"Journal entry found for user {user.id}. Reset inactive counter to 0.")
 
             # 3. Generate motivational message asynchronously
             motivational_message = await JournalManager.generate_motivational_message(journal_content)

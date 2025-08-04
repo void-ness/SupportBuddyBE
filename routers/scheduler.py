@@ -14,3 +14,10 @@ async def schedule_notion_journal_processing(background_tasks: BackgroundTasks):
     background_tasks.add_task(BatchProcessor().process_notion_users_in_batches)
     return {"message": "Notion journal processing scheduled in background."}
 
+
+@router.post("/schedule/deactivate-inactive-users", dependencies=[Depends(verify_token)])
+async def schedule_deactivate_inactive_users(background_tasks: BackgroundTasks):
+    logger.info("Received request to schedule deactivation of inactive users.")
+    background_tasks.add_task(BatchProcessor().process_user_deactivation)
+    return {"message": "User deactivation process scheduled in background."}
+

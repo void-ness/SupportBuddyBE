@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import List
+import os
 
 from managers.user_manager import UserManager
 from managers.journal_manager import JournalManager
@@ -34,3 +35,24 @@ class BatchProcessor:
             logger.info(f"Processed batch {i // batch_size + 1}.")
 
         logger.info("Finished batch processing for Notion users.")
+
+    async def process_user_deactivation(self):
+        """
+        Processes the deactivation of users who have been inactive for too long.
+        """
+        logger.info("Starting user deactivation process.")
+        try:
+            # Get threshold from environment variable, with a default
+            inactivity_threshold = int(os.environ.get("INACTIVITY_THRESHOLD_DAYS", 30))
+            
+            deactivated_count = await self.user_manager.deactivate_long_inactive_users(inactivity_threshold)
+            
+            if deactivated_count > 0:
+                logger.info(f"Successfully deactivated {deactivated_count} inactive users.")
+            else:
+                logger.info("No users met the criteria for deactivation.")
+                
+        except Exception as e:
+            logger.error(f"An error occurred during the user deactivation process: {e}")
+
+        logger.info("Finished user deactivation process.")
