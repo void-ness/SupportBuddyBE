@@ -38,11 +38,11 @@ async def generate_message(journal_entry: JournalEntry):
 @router.get("/journal/today")
 async def get_todays_journal(user_id: int = 1):
     try:
-        integration = NotionIntegrationManager().get_integration_by_user_id(user_id)
+        integration = await NotionIntegrationManager().get_integration_by_user_id(user_id)
         if not integration:
             raise HTTPException(status_code=404, detail="Notion integration not found for this user.")
         
-        content = NotionManager.get_latest_journal_entry(
+        content = await NotionManager().get_latest_journal_entry(
             notion_token=integration.access_token,
             database_id=integration.page_id
         )

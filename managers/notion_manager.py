@@ -36,15 +36,26 @@ class NotionManager:
                 database_id=database_id,
                 sorts=[
                     {
-                        "timestamp": "last_edited_time",
+                        "timestamp": "created_time",
                         "direction": "descending",
                     }
                 ],
                 filter={
-                    "timestamp": "last_edited_time",
-                    "last_edited_time": {
-                        "on_or_after": last_24_hours_iso
-                    }
+                   "and":
+                        [
+                            {
+                                "property": "Ignore This",
+                                "checkbox": {
+                                    "equals": False
+                                }
+                            },
+                            {
+                                "timestamp": "last_edited_time",
+                                "last_edited_time": {
+                                    "on_or_after": last_24_hours_iso
+                                }
+                            }
+                        ]
                 },
                 page_size=1
             )            
