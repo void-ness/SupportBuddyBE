@@ -1,12 +1,20 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from tortoise import fields, models
 
+class NotionJournalEntry(BaseModel):
+    entry_title: Optional[str] = Field(None, description="The title of the journal entry.")
+    gratitude: Optional[str] = Field(None, description="Things the user is grateful for.")
+    highlights: Optional[str] = Field(None, description="The highlights of the user's day.")
+    challenges: Optional[str] = Field(None, description="Challenges the user faced.")
+    reflection: Optional[str] = Field(None, description="The user's reflections on the day.")
+
 class JournalEntry(BaseModel):
     content: str
     user_id: Optional[UUID] = None
+
 
 class Journal(BaseModel):
     id: str

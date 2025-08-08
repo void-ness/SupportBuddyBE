@@ -1,4 +1,4 @@
-from models.models import JournalEntry, Journal, Message, User
+from models.models import JournalEntry, Journal, Message, User, NotionJournalEntry
 from managers.genai_manager import GenAIManager
 from managers.email_manager import EmailManager
 from managers.notion_manager import NotionManager
@@ -56,18 +56,23 @@ class JournalManager:
                 await conn.release()
 
     @staticmethod
-    async def generate_motivational_message(journal_content: str) -> str:
+    async def generate_motivational_message(journal_content: NotionJournalEntry) -> str:
         try:
             # Truncate journal_content to prevent abuse and manage costs
             MAX_JOURNAL_LENGTH = 2000
-            if len(journal_content) > MAX_JOURNAL_LENGTH:
-                journal_content = journal_content[:MAX_JOURNAL_LENGTH] + "... [Journal truncated]"
+            
+            journal_json = journal_content.model_dump_json(indent=2)
+
+            if len(journal_json) > MAX_JOURNAL_LENGTH:
+                # This is a simplistic truncation; a more sophisticated approach
+                # might be needed for very large entries.
+                journal_json = journal_json[:MAX_JOURNAL_LENGTH] + "... [Journal truncated]}"
 
             with open("prompts/journal_prompt.md", "r") as f:
                 system_prompt = f.read()
             
             message = await GenAIManager.generate(
-                prompt=journal_content, 
+                prompt=journal_json, 
                 system_prompt=system_prompt
             )
             # print(f"Generated message: {message}")  # Debugging output
