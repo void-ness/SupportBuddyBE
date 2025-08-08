@@ -6,6 +6,7 @@ from managers.notion_integration_manager import NotionIntegrationManager
 # from utils.database import get_db_connection
 import logging
 import asyncio
+import json
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -56,23 +57,61 @@ class JournalManager:
                 await conn.release()
 
     @staticmethod
+    def _truncate_journal_for_prompt(journal_content: NotionJournalEntry, max_length: int) -> str:
+        """
+        Truncates journal content to a max length, ensuring valid JSON.
+        It proportionally shortens fields if the total length exceeds the limit.
+        """
+        # Get the journal data as a dictionary, excluding empty fields
+        journal_data = journal_content.model_dump(exclude_none=True)
+        
+        # Initial JSON string to check length
+        journal_json = json.dumps(journal_data)
+
+        if len(journal_json) > max_length:
+            # Calculate total length of all text content
+            content_values = [v for v in journal_data.values() if isinstance(v, str)]
+            content_len = sum(len(v) for v in content_values)
+            
+            # Calculate how much we need to trim
+            overflow = len(journal_json) - max_length
+            
+            if content_len > 0:
+                # Trim each value proportionally
+                for key, value in journal_data.items():
+                    if isinstance(value, str):
+                        # Calculate how much to remove from this specific field
+                        proportion = len(value) / content_len
+                        # Subtract 18 to account for adding "... (truncated)"
+                        truncation_amount = int(overflow * proportion) + 18 
+                        
+                        if truncation_amount < len(value):
+                            new_len = len(value) - truncation_amount
+                            journal_data[key] = value[:new_len] + "... (truncated)"
+                        else:
+                            # If the field is too small to truncate meaningfully, clear it
+                            journal_data[key] = ""
+            
+            # Remove any fields that became empty after truncation
+            journal_data = {k: v for k, v in journal_data.items() if v}
+
+        # Create the final JSON prompt, pretty-printed
+        return json.dumps(journal_data, indent=2)
+
+    @staticmethod
     async def generate_motivational_message(journal_content: NotionJournalEntry) -> str:
         try:
-            # Truncate journal_content to prevent abuse and manage costs
             MAX_JOURNAL_LENGTH = 2000
             
-            journal_json = journal_content.model_dump_json(indent=2)
-
-            if len(journal_json) > MAX_JOURNAL_LENGTH:
-                # This is a simplistic truncation; a more sophisticated approach
-                # might be needed for very large entries.
-                journal_json = journal_json[:MAX_JOURNAL_LENGTH] + "... [Journal truncated]}"
+            final_prompt = JournalManager._truncate_journal_for_prompt(
+                journal_content, MAX_JOURNAL_LENGTH
+            )
 
             with open("prompts/journal_prompt.md", "r") as f:
                 system_prompt = f.read()
             
             message = await GenAIManager.generate(
-                prompt=journal_json, 
+                prompt=final_prompt, 
                 system_prompt=system_prompt
             )
             # print(f"Generated message: {message}")  # Debugging output
