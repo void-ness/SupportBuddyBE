@@ -8,6 +8,7 @@ import base64
 from managers.notion_integration_manager import NotionIntegrationManager
 from managers.user_manager import UserManager
 from utils.utils import create_access_token # Import create_access_token
+from models.models import NotionJournalEntry
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class NotionManager:
         self.notion_integration_manager = NotionIntegrationManager()
         self.user_manager = UserManager()
 
-    async def get_latest_journal_entry(self, notion_token: str, database_id: str):
+    async def get_latest_journal_entry(self, notion_token: str, database_id: str) -> NotionJournalEntry | None:
         try:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
@@ -62,15 +63,15 @@ class NotionManager:
             if response["results"]:
                 latest_journal_page = response["results"][0]
                 
-                journal_content = []
+                journal_data = {}
                 properties = latest_journal_page["properties"]
 
                 # Extract Entry Title
                 entry_title = properties.get('Entry Title', {}).get('title', [])
                 if entry_title:
                     title_text = entry_title[0].get('plain_text', '')
-                    if title_text:  # Only add if title_text is not empty
-                        journal_content.append(f"Entry Title - {title_text}")
+                    if title_text:
+                        journal_data['entry_title'] = title_text
 
                 # Extract rich text properties
                 rich_text_properties = ['Gratitude', 'Highlights', 'Challenges', 'Reflection']
@@ -78,13 +79,10 @@ class NotionManager:
                     prop_data = properties.get(prop_name, {}).get('rich_text', [])
                     if prop_data:
                         content_text = "".join([text_obj.get('plain_text', '') for text_obj in prop_data])
-                        if content_text:  # Only add if content_text is not empty
-                            journal_content.append(f"{prop_name} - {content_text}")
+                        if content_text:
+                            journal_data[prop_name.lower()] = content_text
                 
-                result = "\n".join(journal_content)
-                if not result.strip():  # Check if the joined string is empty or only contains whitespace
-                    return None
-                return result
+                return NotionJournalEntry(**journal_data) if journal_data else None
             else:
                 return None
 

@@ -77,11 +77,13 @@ async def test_notion_fetch(user_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch Notion data: {e}")
 
 @router.post("/process-and-email-journal")
-async def process_and_email_journal():
+async def process_and_email_journal(user_id: int):
+    from models.models import User
     try:
         # Hardcoded email for now, as requested
+        user = await User.get(id=user_id)
         recipient_email = os.getenv("RECIPIENT_EMAIL") # REPLACE WITH ACTUAL RECIPIENT EMAIL
-        result = await JournalManager.process_and_email_latest_journal(recipient_email)
+        result = await JournalManager().process_and_email_user_journal(user)
         if result["message"] is None:
             raise HTTPException(status_code=404, detail=result["status"])
         return result
