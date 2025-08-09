@@ -72,6 +72,7 @@ class NotionIntegration(models.Model):
     user_id = fields.IntField(unique=True)
     access_token = fields.TextField()
     page_id = fields.TextField()
+    version = fields.TextField(default="v1")
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
