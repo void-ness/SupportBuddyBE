@@ -6,3 +6,4 @@ class NotionAuthCode(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    existing_user: bool
