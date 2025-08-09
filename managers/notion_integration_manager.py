@@ -5,13 +5,14 @@ from models.models import NotionIntegration, NotionIntegrationPydantic
 from utils.utils import encrypt_data, decrypt_data
 
 class NotionIntegrationManager:
-    async def create_integration(self, user_id: int, access_token: str, page_id: str) -> NotionIntegrationPydantic:
+    async def create_integration(self, user_id: int, access_token: str, page_id: str, version: str = "v1") -> NotionIntegrationPydantic:
         try:
             encrypted_access_token = encrypt_data(access_token)
             integration = await NotionIntegration.create(
                 user_id=user_id,
                 access_token=encrypted_access_token,
-                page_id=page_id
+                page_id=page_id,
+                version=version
             )
             return integration.to_pydantic()
         except Exception as e:

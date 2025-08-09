@@ -148,7 +148,10 @@ class NotionManager:
         user, created = await self.user_manager.get_or_create_user_by_email(user_email)
 
         await self.notion_integration_manager.create_integration(
-            user_id=user.id, access_token=access_token, page_id=duplicated_template_id
+            user_id=user.id,
+            access_token=access_token,
+            page_id=duplicated_template_id,
+            version="v2",
         )
 
         app_access_token = create_access_token(data={"sub": str(user.id)})
@@ -181,7 +184,7 @@ class NotionManager:
         """
         from .notion_manager_v2 import NotionManagerV2
 
-        if integration.created_at > datetime.strptime("2025-08-09", "%Y-%m-%d").replace(tzinfo=timezone.utc):
+        if integration.version == "v2":
             return NotionManagerV2()
         else:
             return NotionManager()
