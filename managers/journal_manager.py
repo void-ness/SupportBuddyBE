@@ -1,9 +1,11 @@
-from models.models import JournalEntry, Journal, Message, User, NotionJournalEntry
+from models.models import JournalEntry, Journal, User, NotionJournalEntry
+
 from managers.genai_manager import GenAIManager
 from managers.email_manager import EmailManager
-from managers.notion_manager import NotionManager
+from managers.notion_module.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
 # from utils.database import get_db_connection
+
 import logging
 import asyncio
 import json
@@ -14,7 +16,6 @@ logger.setLevel(logging.INFO)
 class JournalManager:
     def __init__(self):
         self.notion_integration_manager = NotionIntegrationManager()
-        self.notion_manager = NotionManager()
 
     #todo - refactor this to use async database connection of tortoise ORM
     @staticmethod
@@ -136,8 +137,10 @@ class JournalManager:
             
             # print(f"Notion integration found for user {user.id}: {notion_integration}")  # Debugging output
 
+            notion_manager: NotionManager = NotionManager.get_manager_by_integration(notion_integration)
+
             # 2. Fetch latest journal entry from Notion using user's credentials asynchronously
-            journal_content = await self.notion_manager.get_latest_journal_entry(
+            journal_content = await notion_manager.get_latest_journal_entry(
                 notion_token=notion_integration.access_token,
                 database_id=notion_integration.page_id
             )
@@ -166,4 +169,4 @@ class JournalManager:
             return {"status": "Journal processed and email sent", "message": motivational_message}
         except Exception as e:
             logger.error(f"Error processing and emailing journal for user {user.id} ({user.email}): {e}")
-            raise
+            raise  
