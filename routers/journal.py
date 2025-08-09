@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from models.models import JournalEntry, Journal
 from managers.journal_manager import JournalManager
-from managers.notion_manager import NotionManager
+from managers.notion_module.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
 from managers.email_manager import EmailManager
 import logging

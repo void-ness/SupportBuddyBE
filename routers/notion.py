@@ -2,7 +2,7 @@ import httpx
 import logging
 from fastapi import APIRouter, HTTPException, status
 
-from managers.notion_manager import NotionManager
+from managers.notion_module.notion_manager import NotionManager
 from routers.validations.notion_validation import NotionAuthCode, Token
 
 router = APIRouter()

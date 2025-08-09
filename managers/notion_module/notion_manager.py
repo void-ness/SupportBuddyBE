@@ -7,10 +7,12 @@ import base64
 
 from managers.notion_integration_manager import NotionIntegrationManager
 from managers.user_manager import UserManager
-from utils.utils import create_access_token # Import create_access_token
+from models.models import NotionIntegration
+from utils.utils import create_access_token  # Import create_access_token
 from models.models import NotionJournalEntry
 
 logger = logging.getLogger(__name__)
+
 
 class NotionManager:
     NOTION_CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
@@ -21,16 +23,14 @@ class NotionManager:
         self.notion_integration_manager = NotionIntegrationManager()
         self.user_manager = UserManager()
 
-    async def get_latest_journal_entry(self, notion_token: str, database_id: str) -> NotionJournalEntry | None:
+    async def get_latest_journal_entry(
+        self, notion_token: str, database_id: str
+    ) -> NotionJournalEntry | None:
         try:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
 
-            notion = AsyncClient(auth=notion_token)
-
-            # Calculate timestamp for 24 hours ago
-            last_24_hours = datetime.now(timezone.utc) - timedelta(hours=24)
-            last_24_hours_iso = last_24_hours.isoformat()
+            notion = AsyncClient(auth=notion_token, log_level=logging.DEBUG)
 
             # Query the database
             response = await notion.databases.query(
@@ -41,47 +41,38 @@ class NotionManager:
                         "direction": "descending",
                     }
                 ],
-                filter={
-                   "and":
-                        [
-                            {
-                                "property": "Ignore This",
-                                "checkbox": {
-                                    "equals": False
-                                }
-                            },
-                            {
-                                "timestamp": "last_edited_time",
-                                "last_edited_time": {
-                                    "on_or_after": last_24_hours_iso
-                                }
-                            }
-                        ]
-                },
-                page_size=1
-            )            
+                filter=self.get_filter_payload(),
+                page_size=1,
+            )
             if response["results"]:
                 latest_journal_page = response["results"][0]
-                
+
                 journal_data = {}
                 properties = latest_journal_page["properties"]
 
                 # Extract Entry Title
-                entry_title = properties.get('Entry Title', {}).get('title', [])
+                entry_title = properties.get("Entry Title", {}).get("title", [])
                 if entry_title:
-                    title_text = entry_title[0].get('plain_text', '')
+                    title_text = entry_title[0].get("plain_text", "")
                     if title_text:
-                        journal_data['entry_title'] = title_text
+                        journal_data["entry_title"] = title_text
 
                 # Extract rich text properties
-                rich_text_properties = ['Gratitude', 'Highlights', 'Challenges', 'Reflection']
+                rich_text_properties = [
+                    "Gratitude",
+                    "Highlights",
+                    "Challenges",
+                    "Reflection",
+                ]
                 for prop_name in rich_text_properties:
-                    prop_data = properties.get(prop_name, {}).get('rich_text', [])
+                    prop_data = properties.get(prop_name, {}).get("rich_text", [])
                     if prop_data:
-                        content_text = "".join([text_obj.get('plain_text', '') for text_obj in prop_data])
+                        content_text = "".join(
+                            [text_obj.get("plain_text", "") for text_obj in prop_data]
+                        )
                         if content_text:
                             journal_data[prop_name.lower()] = content_text
-                
+
                 return NotionJournalEntry(**journal_data) if journal_data else None
             else:
                 return None
@@ -98,21 +89,23 @@ class NotionManager:
 
             if not any([client_id, client_secret, redirect_uri]):
                 raise ValueError("Notion API credentials not configured.")
-            
+
             token_url = "https://api.notion.com/v1/oauth/token"
             auth_string = f"{client_id}:{client_secret}"
-            encoded_auth_string = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+            encoded_auth_string = base64.b64encode(auth_string.encode("utf-8")).decode(
+                "utf-8"
+            )
 
             headers = {
                 "Authorization": f"Basic {encoded_auth_string}",
                 "Content-Type": "application/json",
-                "Notion-Version": "2022-06-28"
+                "Notion-Version": "2022-06-28",
             }
 
             payload = {
                 "grant_type": "authorization_code",
                 "code": auth_code,
-                "redirect_uri": redirect_uri
+                "redirect_uri": redirect_uri,
             }
 
             async with httpx.AsyncClient() as client:
@@ -121,16 +114,20 @@ class NotionManager:
                 data = response.json()
                 return data
         except httpx.HTTPStatusError as e:
-            logger.error(f"Notion API response error: {e.response.status_code} - {e.response.text}")
-            raise Exception("Failed to authenticate with Notion. Please try again later.")
+            logger.error(
+                f"Notion API response error: {e.response.status_code} - {e.response.text}"
+            )
+            raise Exception(
+                "Failed to authenticate with Notion. Please try again later."
+            )
         except Exception as e:
             logger.exception(f"Error while authorizing with Notion: {str(e)}")
-            raise Exception("Failed to authenticate with Notion. Please try again later.")
+            raise Exception(
+                "Failed to authenticate with Notion. Please try again later."
+            )
 
     async def handle_notion_authorization(self, auth_code: str):
-        data = await self._exchange_code_for_token(
-            auth_code=auth_code
-        )
+        data = await self._exchange_code_for_token(auth_code=auth_code)
 
         access_token = data.get("access_token")
         duplicated_template_id = data.get("duplicated_template_id")
@@ -141,7 +138,9 @@ class NotionManager:
             raise ValueError("Failed to get access token from Notion.")
 
         if not duplicated_template_id:
-            raise ValueError("Failed to get template ID from Notion. Please select duplicate the template while authenticating with Notion.")
+            raise ValueError(
+                "Failed to get template ID from Notion. Please select duplicate the template while authenticating with Notion."
+            )
 
         if not user_email:
             raise ValueError("Failed to get user email from Notion.")
@@ -149,14 +148,40 @@ class NotionManager:
         user, created = await self.user_manager.get_or_create_user_by_email(user_email)
 
         await self.notion_integration_manager.create_integration(
-            user_id=user.id,
-            access_token=access_token,
-            page_id=duplicated_template_id
+            user_id=user.id, access_token=access_token, page_id=duplicated_template_id
         )
 
         app_access_token = create_access_token(data={"sub": str(user.id)})
         return {
-            "access_token": app_access_token, 
+            "access_token": app_access_token,
             "token_type": "bearer",
-            "existing_user": not created
+            "existing_user": not created,
         }
+
+    def get_filter_payload(self):
+        # Calculate timestamp for 24 hours ago
+        last_24_hours = datetime.now(timezone.utc) - timedelta(hours=24)
+        last_24_hours_iso = last_24_hours.isoformat()
+
+        return {
+            "and": [
+                {
+                    "timestamp": "last_edited_time",
+                    "last_edited_time": {"on_or_after": last_24_hours_iso},
+                }
+            ]
+        }
+
+    @classmethod
+    def get_manager_by_integration(
+        cls, integration: NotionIntegration
+    ) -> "NotionManager":
+        """
+        Returns the NotionManager instance for the given integration.
+        """
+        from .notion_manager_v2 import NotionManagerV2
+
+        if integration.created_at > datetime.strptime("2025-08-09", "%Y-%m-%d").replace(tzinfo=timezone.utc):
+            return NotionManagerV2()
+        else:
+            return NotionManager()
