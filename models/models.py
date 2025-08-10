@@ -85,6 +85,7 @@ class NotionIntegration(models.Model):
             user_id=self.user_id,
             access_token=self.access_token,
             page_id=self.page_id,
+            version=self.version,
             created_at=self.created_at,
             updated_at=self.updated_at
         )
@@ -94,5 +95,6 @@ class NotionIntegrationPydantic(BaseModel):
     user_id: int
     access_token: str
     page_id: str
+    version: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
