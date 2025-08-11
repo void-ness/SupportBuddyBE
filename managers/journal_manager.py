@@ -9,9 +9,14 @@ from managers.notion_integration_manager import NotionIntegrationManager
 import logging
 import asyncio
 import json
+import random
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Configuration constants
+GENAI_MAX_RETRIES = 1  # Number of retries for AI message generation
+MAX_JOURNAL_LENGTH = 2000  # Maximum length for journal content in prompt
 
 class JournalManager:
     def __init__(self):
@@ -101,31 +106,50 @@ class JournalManager:
 
     @staticmethod
     async def generate_motivational_message(journal_content: NotionJournalEntry) -> str:
-        try:
-            MAX_JOURNAL_LENGTH = 2000
-            
-            final_prompt = JournalManager._truncate_journal_for_prompt(
-                journal_content, MAX_JOURNAL_LENGTH
-            )
+        final_prompt = JournalManager._truncate_journal_for_prompt(
+            journal_content, MAX_JOURNAL_LENGTH
+        )
 
-            with open("prompts/journal_prompt.md", "r") as f:
-                system_prompt = f.read()
-            
-            message = await GenAIManager.generate(
-                prompt=final_prompt, 
-                system_prompt=system_prompt
-            )
-            # print(f"Generated message: {message}")  # Debugging output
-            return message
-        except Exception as e:
-            logger.error(f"Error generating motivational message: {e}")
-            # Fallback to a static message
-            import random
-            fallback_messages = [
-                "Hey, I hear you. It's completely understandable to feel overwhelmed and exhausted when you have a lot on your plate. Remember it's okay to rest and recharge. You don't have to do it all, all the time. Be kind to yourself and take a break.",
-                "It sounds like you're carrying a really heavy load right now. It's completely valid to feel tired when you're trying to do so much. Maybe it's a good time to take a step back and see if there's anything you can delegate, postpone, or even let go of entirely. Your well-being is the most important thing. You deserve to rest and take care of yourself. Even small moments of self-care can make a difference. You've got this, and remember it's okay to ask for help if you need it."
-            ]
-            return random.choice(fallback_messages)
+        with open("prompts/journal_prompt.md", "r") as f:
+            system_prompt = f.read()
+        
+        for attempt in range(GENAI_MAX_RETRIES + 1):  # Initial attempt + retries
+            try:
+                message = await GenAIManager.generate(
+                    prompt=final_prompt, 
+                    system_prompt=system_prompt
+                )
+                
+                # Check if message is empty or None
+                if message and message.strip():
+                    logger.info(f"Successfully generated motivational message on attempt {attempt + 1}")
+                    return message
+                else:
+                    if attempt < GENAI_MAX_RETRIES:
+                        logger.warning(f"Generated message is empty or None on attempt {attempt + 1}. Retrying...")
+                        await asyncio.sleep(1)  # Brief delay before retry
+                        continue
+                    else:
+                        logger.error(f"Generated message is empty or None after {GENAI_MAX_RETRIES + 1} attempts. Using fallback message.")
+                        break
+                        
+            except Exception as e:
+                if attempt < GENAI_MAX_RETRIES:
+                    logger.warning(f"Error generating motivational message on attempt {attempt + 1}: {e}. Retrying...")
+                    await asyncio.sleep(1)  # Brief delay before retry
+                    continue
+                else:
+                    logger.error(f"Error generating motivational message after {GENAI_MAX_RETRIES + 1} attempts: {e}. Using fallback message.")
+                    break
+        
+        # Fallback to a static message if all attempts failed
+        fallback_messages = [
+            "Hey, I hear you. It's completely understandable to feel overwhelmed and exhausted when you have a lot on your plate. Remember it's okay to rest and recharge. You don't have to do it all, all the time. Be kind to yourself and take a break.",
+            "It sounds like you're carrying a really heavy load right now. It's completely valid to feel tired when you're trying to do so much. Maybe it's a good time to take a step back and see if there's anything you can delegate, postpone, or even let go of entirely. Your well-being is the most important thing. You deserve to rest and take care of yourself. Even small moments of self-care can make a difference. You've got this, and remember it's okay to ask for help if you need it."
+        ]
+        selected_fallback = random.choice(fallback_messages)
+        logger.info("Using fallback motivational message")
+        return selected_fallback
 
     async def process_and_email_user_journal(self, user: User):
         try:
@@ -161,6 +185,11 @@ class JournalManager:
 
             # 3. Generate motivational message asynchronously
             motivational_message = await JournalManager.generate_motivational_message(journal_content)
+            
+            # Validate that we have a valid message before sending email
+            if not motivational_message or not motivational_message.strip():
+                logger.error(f"Generated message is empty or None for user {user.id}. Cannot send email.")
+                return {"status": "Failed to generate motivational message", "message": None}
             
             # 4. Send email to the user asynchronously
             await EmailManager.send_motivational_email(user.id, user.email, motivational_message, greeting="Hey,", salutation="Good morning!")

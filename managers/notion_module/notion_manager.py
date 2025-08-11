@@ -30,7 +30,7 @@ class NotionManager:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
 
-            notion = AsyncClient(auth=notion_token, log_level=logging.DEBUG)
+            notion = AsyncClient(auth=notion_token)
 
             # Query the database
             response = await notion.databases.query(
