@@ -30,7 +30,15 @@ async def create_journal(journal_entry: JournalEntry):
 async def generate_message(journal_entry: JournalEntry):
     try:
         message = await JournalManager.generate_motivational_message(journal_entry.content)
+        
+        # Validate that we have a valid message
+        if not message or not message.strip():
+            logger.error("Generated message is empty or None")
+            raise HTTPException(status_code=500, detail="Failed to generate a valid motivational message.")
+            
         return {"message": message}
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         logger.error(f"Error generating message: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate message.")
