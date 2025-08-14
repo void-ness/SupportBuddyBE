@@ -11,7 +11,7 @@ class NotionManagerV2(NotionManager):
 
         return {
             "and": [
-                {"property": "Ignore This", "checkbox": {"equals": False}},
+                {"property": "Ignore Entry", "checkbox": {"equals": False}},
                 {
                     "timestamp": "last_edited_time",
                     "last_edited_time": {"on_or_after": last_24_hours_iso},
