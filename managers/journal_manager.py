@@ -131,11 +131,11 @@ class JournalManager:
                         
             except Exception as e:
                 if attempt < GENAI_MAX_RETRIES:
-                    logger.warning(f"Error generating motivational message on attempt {attempt + 1}: {e}. Retrying...")
+                    logger.warning(f"Error generating motivational message on attempt {attempt + 1}: {str(e)}. Retrying...")
                     await asyncio.sleep(1)  # Brief delay before retry
                     continue
                 else:
-                    logger.error(f"Error generating motivational message after {GENAI_MAX_RETRIES + 1} attempts: {e}. Using fallback message.")
+                    logger.error(f"Error generating motivational message after {GENAI_MAX_RETRIES + 1} attempts: {str(e)}. Using fallback message.")
                     break
         
         # Fallback to a static message if all attempts failed
