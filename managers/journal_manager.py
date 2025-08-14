@@ -71,16 +71,12 @@ class JournalManager:
         # Get the journal data as a dictionary, excluding empty fields
         journal_data = journal_content.model_dump(exclude_none=True)
         
-        # Initial JSON string to check length
-        journal_json = json.dumps(journal_data)
-
-        if len(journal_json) > max_length:
-            # Calculate total length of all text content
-            content_values = [v for v in journal_data.values() if isinstance(v, str)]
-            content_len = sum(len(v) for v in content_values)
-            
+        content_values = [v for v in journal_data.values() if isinstance(v, str)]
+        content_len = sum(len(v) for v in content_values)
+    
+        if content_len > max_length:            
             # Calculate how much we need to trim
-            overflow = len(journal_json) - max_length
+            overflow = content_len - max_length
             
             if content_len > 0:
                 # Trim each value proportionally
@@ -95,8 +91,8 @@ class JournalManager:
                             new_len = len(value) - truncation_amount
                             journal_data[key] = value[:new_len] + "... (truncated)"
                         else:
-                            # If the field is too small to truncate meaningfully, clear it
-                            journal_data[key] = ""
+                            # If the field is too small to truncate meaningfully, keep it as it is
+                            journal_data[key] = value
             
             # Remove any fields that became empty after truncation
             journal_data = {k: v for k, v in journal_data.items() if v}
