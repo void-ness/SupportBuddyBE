@@ -56,7 +56,7 @@ class GenAIManager:
             "temperature": 1.5,  # More creative temperature
             "max_output_tokens": 3000,
             "thinking_config": ThinkingConfig(
-                thinking_budget=-1,  # Automatic thinking budget
+                thinking_budget=3000,  # Automatic thinking budget
             ),
         }
 
@@ -71,12 +71,25 @@ class GenAIManager:
             config=config,
         )
 
-        # Log usage metadata for monitoring
-        if hasattr(response, "usage_metadata") and response.usage_metadata:
-            usage_meta = response.usage_metadata
-            logger.info(
-                "Usage Metadata: %s", usage_meta.model_dump(exclude_none=True, indent=2)
-            )
+        try:
+            # Check if response has candidates and log finish reason safely
+            if (hasattr(response, "candidates") and 
+                response.candidates and 
+                len(response.candidates) > 0 and 
+                hasattr(response.candidates[0], "finish_reason")):
+                logger.info(
+                    f"Generated response finish reason: {response.candidates[0].finish_reason}"
+                )
+
+            # Log usage metadata for monitoring
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                usage_meta = response.usage_metadata
+                logger.info(
+                    "Usage Metadata: %s", usage_meta.model_dump(exclude_none=True)
+                )
+        except Exception as e:
+            logger.warning(f"Error logging response metadata: {str(e)}")
+            pass
 
         return response.text
 
