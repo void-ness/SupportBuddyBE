@@ -4,6 +4,7 @@ from managers.genai_manager import GenAIManager
 from managers.email_manager import EmailManager
 from managers.notion_module.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
+from exceptions.journal_exceptions import JournalDatabaseNotFound
 # from utils.database import get_db_connection
 
 import logging
@@ -71,16 +72,12 @@ class JournalManager:
         # Get the journal data as a dictionary, excluding empty fields
         journal_data = journal_content.model_dump(exclude_none=True)
         
-        # Initial JSON string to check length
-        journal_json = json.dumps(journal_data)
-
-        if len(journal_json) > max_length:
-            # Calculate total length of all text content
-            content_values = [v for v in journal_data.values() if isinstance(v, str)]
-            content_len = sum(len(v) for v in content_values)
-            
+        content_values = [v for v in journal_data.values() if isinstance(v, str)]
+        content_len = sum(len(v) for v in content_values)
+    
+        if content_len > max_length:            
             # Calculate how much we need to trim
-            overflow = len(journal_json) - max_length
+            overflow = content_len - max_length
             
             if content_len > 0:
                 # Trim each value proportionally
@@ -95,8 +92,8 @@ class JournalManager:
                             new_len = len(value) - truncation_amount
                             journal_data[key] = value[:new_len] + "... (truncated)"
                         else:
-                            # If the field is too small to truncate meaningfully, clear it
-                            journal_data[key] = ""
+                            # If the field is too small to truncate meaningfully, keep it as it is
+                            journal_data[key] = value
             
             # Remove any fields that became empty after truncation
             journal_data = {k: v for k, v in journal_data.items() if v}
@@ -135,11 +132,11 @@ class JournalManager:
                         
             except Exception as e:
                 if attempt < GENAI_MAX_RETRIES:
-                    logger.warning(f"Error generating motivational message on attempt {attempt + 1}: {e}. Retrying...")
+                    logger.warning(f"Error generating motivational message on attempt {attempt + 1}: {str(e)}. Retrying...")
                     await asyncio.sleep(1)  # Brief delay before retry
                     continue
                 else:
-                    logger.error(f"Error generating motivational message after {GENAI_MAX_RETRIES + 1} attempts: {e}. Using fallback message.")
+                    logger.error(f"Error generating motivational message after {GENAI_MAX_RETRIES + 1} attempts: {str(e)}. Using fallback message.")
                     break
         
         # Fallback to a static message if all attempts failed
@@ -164,10 +161,14 @@ class JournalManager:
             notion_manager: NotionManager = NotionManager.get_manager_by_integration(notion_integration)
 
             # 2. Fetch latest journal entry from Notion using user's credentials asynchronously
-            journal_content = await notion_manager.get_latest_journal_entry(
-                notion_token=notion_integration.access_token,
-                database_id=notion_integration.page_id
-            )
+            try:
+                journal_content = await notion_manager.get_latest_journal_entry(
+                    notion_token=notion_integration.access_token,
+                    database_id=notion_integration.page_id
+                )
+            except JournalDatabaseNotFound as e:
+                await self._handle_database_not_found(user)
+                return {"status": "Journal database not found", "message": None}
 
             # print(f"Fetched journal content: {journal_content}")  # Debugging output
 
@@ -198,4 +199,18 @@ class JournalManager:
             return {"status": "Journal processed and email sent", "message": motivational_message}
         except Exception as e:
             logger.error(f"Error processing and emailing journal for user {user.id} ({user.email}): {e}")
+            raise
+
+    async def _handle_database_not_found(self, user: User):
+        """
+        Handles the case when a user's journal database is not found by deactivating the user.
+        """
+        try:
+            logger.info(
+                f"Database not found for user {user.id}. Deactivating user"
+            )
+            user.is_active = False
+            await user.save(update_fields=["is_active", "updated_at"])
+        except Exception as e:
+            logger.error(f"Error handling database not found for user {user.id}: {str(e)}")
             raise  

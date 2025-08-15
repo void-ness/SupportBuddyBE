@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import uvicorn
 
-from routers import journal, auth, notion, scheduler
+from routers import journal, auth, notion, scheduler, genai
 from utils.database import init_db, close_db_connection_pool
 
 from fastapi_limiter import FastAPILimiter
@@ -51,6 +51,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Include the required routers
 if os.getenv("ENV") == "local":
     app.include_router(journal.router, dependencies=[Depends(RateLimiter(times=int(os.getenv("RATE_LIMIT_DEFAULT_TIMES", 10)), seconds=int(os.getenv("RATE_LIMIT_DEFAULT_SECONDS", 60))))])
+    app.include_router(genai.router, prefix="/genai", tags=["genai"], dependencies=[Depends(RateLimiter(times=int(os.getenv("RATE_LIMIT_DEFAULT_TIMES", 10)), seconds=int(os.getenv("RATE_LIMIT_DEFAULT_SECONDS", 60))))])
 # app.include_router(auth.router, dependencies=[Depends(RateLimiter(times=int(os.getenv("RATE_LIMIT_DEFAULT_TIMES", 10)), seconds=int(os.getenv("RATE_LIMIT_DEFAULT_SECONDS", 60))))])
 app.include_router(notion.router, dependencies=[Depends(RateLimiter(times=int(os.getenv("RATE_LIMIT_DEFAULT_TIMES", 10)), seconds=int(os.getenv("RATE_LIMIT_DEFAULT_SECONDS", 60))))])
 app.include_router(scheduler.router, dependencies=[Depends(RateLimiter(times=int(os.getenv("RATE_LIMIT_DEFAULT_TIMES", 10)), seconds=int(os.getenv("RATE_LIMIT_DEFAULT_SECONDS", 60))))])
