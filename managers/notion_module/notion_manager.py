@@ -1,5 +1,5 @@
 import os
-from notion_client import AsyncClient
+from notion_client import AsyncClient, APIResponseError, APIErrorCode
 import logging
 from datetime import datetime, time, timezone, timedelta
 import httpx
@@ -10,6 +10,7 @@ from managers.user_manager import UserManager
 from models.models import NotionIntegration
 from utils.utils import create_access_token  # Import create_access_token
 from models.models import NotionJournalEntry
+from exceptions.journal_exceptions import JournalDatabaseNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +78,18 @@ class NotionManager:
             else:
                 return None
 
+        except APIResponseError as e:
+            if e.status == 404 and e.code == APIErrorCode.ObjectNotFound:
+                logger.warning(f"Journal database not found. Error: {str(e)}")
+                raise JournalDatabaseNotFound(
+                    message=f"Database not found or access denied: {str(e)}",
+                )
+            else:
+                logger.error(f"API error while fetching data from notion: Status {e.status}, Code: {e.code}, Message: {str(e)}")
+                raise
         except Exception as e:
-            logger.error(f"Error fetching from Notion: {e}")
-            return None
+            logger.error(f"Error fetching from Notion database {database_id}: {e}")
+            raise Exception(f"Failed to fetch latest journal entry: {str(e)}")
 
     async def _exchange_code_for_token(self, auth_code: str) -> dict:
         try:
