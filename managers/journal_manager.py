@@ -11,6 +11,8 @@ import logging
 import asyncio
 import json
 import random
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -107,8 +109,25 @@ class JournalManager:
             journal_content, MAX_JOURNAL_LENGTH
         )
 
-        with open("prompts/journal_prompt.md", "r") as f:
-            system_prompt = f.read()
+        try:
+            # Use absolute path based on current file location
+            base_dir = Path(__file__).parent.parent
+            journal_prompt_path = base_dir / "prompts" / "journal_prompt_v3.md"
+            system_prompt_path = base_dir / "prompts" / "system_prompt.md"
+            
+            with open(journal_prompt_path, "r", encoding="utf-8") as f:
+                user_prompt = f.read()
+
+            with open(system_prompt_path, "r", encoding="utf-8") as f:
+                system_prompt = f.read()
+        except FileNotFoundError as e:
+            logger.error(f"Prompt file not found: {e}")
+            raise Exception(f"Required prompt file not found: {e}")
+        except Exception as e:
+            logger.error(f"Error reading prompt files: {e}")
+            raise Exception(f"Error reading prompt files: {e}")
+
+        final_prompt = user_prompt + final_prompt
         
         for attempt in range(GENAI_MAX_RETRIES + 1):  # Initial attempt + retries
             try:
