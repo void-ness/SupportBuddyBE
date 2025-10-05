@@ -210,9 +210,23 @@ class JournalManager:
             if not motivational_message or not motivational_message.strip():
                 logger.error(f"Generated message is empty or None for user {user.id}. Cannot send email.")
                 return {"status": "Failed to generate motivational message", "message": None}
+
+            # 4. Generate email subject asynchronously
+            journal_entry_str = JournalManager._truncate_journal_for_prompt(journal_content, MAX_JOURNAL_LENGTH)
+            email_subject = await GenAIManager.generate_email_subject(
+                journal_entry=journal_entry_str,
+                generated_reply=motivational_message
+            )
             
-            # 4. Send email to the user asynchronously
-            await EmailManager.send_motivational_email(user.id, user.email, motivational_message, greeting="Hey,", salutation="Good morning!")
+            # 5. Send email to the user asynchronously
+            await EmailManager.send_motivational_email(
+                user.id, 
+                user.email, 
+                motivational_message, 
+                subject=email_subject,
+                greeting="Hey,", 
+                salutation="Good morning!"
+            )
 
             logger.info(f"Successfully processed and emailed journal for user {user.id} ({user.email})")
             return {"status": "Journal processed and email sent", "message": motivational_message}

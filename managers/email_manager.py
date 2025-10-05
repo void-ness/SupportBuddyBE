@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class EmailManager:
     @staticmethod
-    async def send_motivational_email(user_id: int, to_email: str, message: str, greeting: str = "Hey,", salutation: str = "Good morning!"):
+    async def send_motivational_email(user_id: int, to_email: str, message: str, subject: str = "A message for you", greeting: str = "Hey,", salutation: str = "Good morning!"):
         full_message = f"{greeting}\n\n{message}\n\n{salutation}"
         try:
             logger.info(f"Attempting to send email for user {user_id} to {to_email}")
@@ -19,7 +19,7 @@ class EmailManager:
             # For testing purposes, print the full message instead of sending it
             logger.info(f"--- Simulating Email Send for user {user_id} ---")
             logger.info(f"To: {to_email}")
-            logger.info(f"Subject: Your daily motivational message")
+            logger.info(f"Subject: {subject}")
             logger.info(f"Body:\n{full_message}")
             logger.info(f"-----------------------------")
 
@@ -31,7 +31,7 @@ class EmailManager:
                     data={
                         "from": f"Jurn AI <help@{mailgun_domain}>",
                         "to": [to_email],
-                        "subject": "Your daily motivational message",
+                        "subject": subject,
                         "text": full_message
                     }
                 )

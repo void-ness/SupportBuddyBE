@@ -10,6 +10,7 @@ from google.genai.types import (
 import os
 from dotenv import load_dotenv
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -92,6 +93,31 @@ class GenAIManager:
             pass
 
         return response.text
+
+    @classmethod
+    async def generate_email_subject(cls, journal_entry: str, generated_reply: str) -> str:
+        """
+        Generates a catchy email subject based on the journal entry.
+        """
+        try:
+            # Use absolute path based on current file location
+            base_dir = Path(__file__).parent.parent
+            subject_prompt_path = base_dir / "prompts" / "email_subject_prompt.md"
+            system_prompt_path = base_dir / "prompts" / "email_subject_system_prompt.md"
+
+            with open(subject_prompt_path, "r", encoding="utf-8") as f:
+                user_prompt_template = f.read()
+
+            with open(system_prompt_path, "r", encoding="utf-8") as f:
+                system_prompt = f.read()
+            
+            prompt = user_prompt_template.replace("{{user_entry}}", journal_entry).replace("{{reply_generated}}", generated_reply)
+
+            subject = await cls.generate(prompt, system_prompt)
+            return subject.strip() if subject else "Your Daily Motivational Message"
+        except Exception as e:
+            logger.error(f"Error generating email subject: {e}")
+            return "Your Daily Motivational Message"
 
     @classmethod
     async def get_model_info(cls, model_name: str = None):
