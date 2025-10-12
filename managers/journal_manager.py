@@ -207,6 +207,7 @@ class JournalManager:
                 logger.info(f"Journal entry found for user {user.id}. Reset inactive counter to 0.")
             
             await self.user_manager.update_user_streak(user.id)
+            await user.refresh_from_db(fields=["streak"])
 
             # 3. Generate motivational message asynchronously
             motivational_message = await JournalManager.generate_motivational_message(journal_content, streak=user.streak)

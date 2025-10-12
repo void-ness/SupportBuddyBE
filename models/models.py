@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 from tortoise import fields, models
 
 class NotionJournalEntry(BaseModel):
@@ -71,7 +71,7 @@ class UserPydantic(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     streak: Optional[int] = 0
-    last_entry_date: Optional[datetime] = None
+    last_entry_date: Optional[date] = None
 
 class NotionIntegration(models.Model):
     id = fields.IntField(pk=True)
