@@ -1,0 +1,3 @@
+ALTER TABLE users
+ADD COLUMN streak INT DEFAULT 0,
+ADD COLUMN last_entry_date DATE;

@@ -4,6 +4,7 @@ from managers.genai_manager import GenAIManager
 from managers.email_manager import EmailManager
 from managers.notion_module.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
+from managers.user_manager import UserManager
 from exceptions.journal_exceptions import JournalDatabaseNotFound
 # from utils.database import get_db_connection
 
@@ -24,6 +25,7 @@ MAX_JOURNAL_LENGTH = 2000  # Maximum length for journal content in prompt
 class JournalManager:
     def __init__(self):
         self.notion_integration_manager = NotionIntegrationManager()
+        self.user_manager = UserManager()
 
     #todo - refactor this to use async database connection of tortoise ORM
     @staticmethod
@@ -104,7 +106,7 @@ class JournalManager:
         return json.dumps(journal_data, indent=2)
 
     @staticmethod
-    async def generate_motivational_message(journal_content: NotionJournalEntry) -> str:
+    async def generate_motivational_message(journal_content: NotionJournalEntry, streak: int = 0) -> str:
         final_prompt = JournalManager._truncate_journal_for_prompt(
             journal_content, MAX_JOURNAL_LENGTH
         )
@@ -112,7 +114,7 @@ class JournalManager:
         try:
             # Use absolute path based on current file location
             base_dir = Path(__file__).parent.parent
-            journal_prompt_path = base_dir / "prompts" / "journal_prompt_v3.md"
+            journal_prompt_path = base_dir / "prompts" / "journal_prompt_v4.md"
             system_prompt_path = base_dir / "prompts" / "system_prompt.md"
             
             with open(journal_prompt_path, "r", encoding="utf-8") as f:
@@ -127,6 +129,7 @@ class JournalManager:
             logger.error(f"Error reading prompt files: {e}")
             raise Exception(f"Error reading prompt files: {e}")
 
+        user_prompt = user_prompt.replace("{{streak_count}}", str(streak))
         final_prompt = user_prompt + final_prompt
         
         for attempt in range(GENAI_MAX_RETRIES + 1):  # Initial attempt + retries
@@ -202,9 +205,11 @@ class JournalManager:
                 user.inactive_days_counter = 0
                 await user.save(update_fields=["inactive_days_counter", "updated_at"])
                 logger.info(f"Journal entry found for user {user.id}. Reset inactive counter to 0.")
+            
+            await self.user_manager.update_user_streak(user.id)
 
             # 3. Generate motivational message asynchronously
-            motivational_message = await JournalManager.generate_motivational_message(journal_content)
+            motivational_message = await JournalManager.generate_motivational_message(journal_content, streak=user.streak)
             
             # Validate that we have a valid message before sending email
             if not motivational_message or not motivational_message.strip():

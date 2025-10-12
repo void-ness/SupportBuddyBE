@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from models.models import User, UserPydantic
 from tortoise.exceptions import DoesNotExist, IntegrityError
@@ -95,3 +95,25 @@ class UserManager:
             return rows_affected
         except Exception as e:
             raise Exception(f"Database error during user deactivation: {e}")
+
+    async def update_user_streak(self, user_id: int):
+        try:
+            user = await User.get(id=user_id)
+            today = date.today()
+
+            if user.last_entry_date:
+                yesterday = today - timedelta(days=1)
+                if user.last_entry_date == yesterday:
+                    user.streak += 1
+                elif user.last_entry_date < yesterday:
+                    user.streak = 1
+            else:
+                user.streak = 1
+            
+            user.last_entry_date = today
+            await user.save(update_fields=["streak", "last_entry_date", "updated_at"])
+
+        except DoesNotExist:
+            raise Exception(f"User with ID {user_id} not found.")
+        except Exception as e:
+            raise Exception(f"Database error updating user streak: {e}")

@@ -39,6 +39,8 @@ class User(models.Model):
     journal_medium = fields.CharField(max_length=50, default="web")
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
+    streak = fields.IntField(default=0)
+    last_entry_date = fields.DateField(null=True)
 
     class Meta:
         table = "users"
@@ -53,7 +55,9 @@ class User(models.Model):
             inactive_days_counter=self.inactive_days_counter,
             journal_medium=self.journal_medium,
             created_at=self.created_at,
-            updated_at=self.updated_at
+            updated_at=self.updated_at,
+            streak=self.streak,
+            last_entry_date=self.last_entry_date
         )
 
 class UserPydantic(BaseModel):
@@ -66,6 +70,8 @@ class UserPydantic(BaseModel):
     journal_medium: str = "web"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    streak: Optional[int] = 0
+    last_entry_date: Optional[datetime] = None
 
 class NotionIntegration(models.Model):
     id = fields.IntField(pk=True)
