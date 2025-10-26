@@ -18,3 +18,10 @@ class NotionManagerV2(NotionManager):
                 },
             ]
         }
+    
+    def get_filter_payload_for_last_entry(self):
+        return {
+            "and": [
+                {"property": "Ignore Entry", "checkbox": {"equals": False}},
+            ]
+        }

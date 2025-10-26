@@ -10,7 +10,7 @@ from managers.user_manager import UserManager
 from models.models import NotionIntegration
 from utils.utils import create_access_token  # Import create_access_token
 from models.models import NotionJournalEntry
-from exceptions.journal_exceptions import JournalDatabaseNotFound
+from exceptions.journal_exceptions import JournalDatabaseNotFound, JournalUnauthorized
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,11 @@ class NotionManager:
             if e.status == 404 and e.code == APIErrorCode.ObjectNotFound:
                 logger.warning(f"Journal database not found. Error: {str(e)}")
                 raise JournalDatabaseNotFound(
+                    message=f"Database not found or access denied: {str(e)}",
+                )
+            if e.status == 401 and e.code == APIErrorCode.Unauthorized:
+                logger.warning(f"Journal database not found. Error: {str(e)}")
+                raise JournalUnauthorized(
                     message=f"Database not found or access denied: {str(e)}",
                 )
             else:
@@ -184,6 +189,81 @@ class NotionManager:
                 }
             ]
         }
+    
+    def get_filter_payload_for_last_entry(self):
+        return {}
+    
+    async def get_last_journal_entry(
+        self, notion_token: str, database_id: str
+    ) -> NotionJournalEntry | None:
+        try:
+            if not notion_token or not database_id:
+                raise Exception("Notion token or database ID not provided.")
+
+            notion = AsyncClient(auth=notion_token)
+
+            # Query the database
+            response = await notion.databases.query(
+                database_id=database_id,
+                sorts=[
+                    {
+                        "timestamp": "created_time",
+                        "direction": "descending",
+                    }
+                ],
+                filter=self.get_filter_payload_for_last_entry(),
+                page_size=1,
+            )
+            if response["results"]:
+                latest_journal_page = response["results"][0]
+
+                journal_data = {}
+                properties = latest_journal_page["properties"]
+
+                # Extract Entry Title
+                entry_title = properties.get("Entry Title", {}).get("title", [])
+                if entry_title:
+                    title_text = entry_title[0].get("plain_text", "")
+                    if title_text:
+                        journal_data["entry_title"] = title_text
+
+                # Extract rich text properties
+                rich_text_properties = [
+                    "Gratitude",
+                    "Highlights",
+                    "Challenges",
+                    "Reflection",
+                ]
+                for prop_name in rich_text_properties:
+                    prop_data = properties.get(prop_name, {}).get("rich_text", [])
+                    if prop_data:
+                        content_text = "".join(
+                            [text_obj.get("plain_text", "") for text_obj in prop_data]
+                        )
+                        if content_text:
+                            journal_data[prop_name.lower()] = content_text
+
+                return NotionJournalEntry(**journal_data) if journal_data else None
+            else:
+                return None
+
+        except APIResponseError as e:
+            if e.status == 404 and e.code == APIErrorCode.ObjectNotFound:
+                logger.warning(f"Journal database not found. Error: {str(e)}")
+                raise JournalDatabaseNotFound(
+                    message=f"Database not found or access denied: {str(e)}",
+                )
+            if e.status == 401 and e.code == APIErrorCode.Unauthorized:
+                logger.warning(f"Journal database not found. Error: {str(e)}")
+                raise JournalUnauthorized(
+                    message=f"Database not found or access denied: {str(e)}",
+                )
+            else:
+                logger.error(f"API error while fetching data from notion: Status {e.status}, Code: {e.code}, Message: {str(e)}")
+                raise
+        except Exception as e:
+            logger.error(f"Error fetching from Notion database {database_id}: {e}")
+            raise Exception(f"Failed to fetch latest journal entry: {str(e)}")
 
     @classmethod
     def get_manager_by_integration(

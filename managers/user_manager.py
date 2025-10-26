@@ -4,6 +4,13 @@ from datetime import datetime, date, timedelta
 from models.models import User, UserPydantic
 from tortoise.exceptions import DoesNotExist, IntegrityError
 
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+
 class UserManager:
     async def create_user(self, user_data: UserPydantic) -> UserPydantic:
         try:
@@ -117,3 +124,16 @@ class UserManager:
             raise Exception(f"User with ID {user_id} not found.")
         except Exception as e:
             raise Exception(f"Database error updating user streak: {e}")
+
+    async def get_recently_active_notion_users(self) -> list[User]:
+        try:
+            reminder_days = int(os.environ.get("REMINDER_EMAIL_DAYS", [1, 3, 5]))
+            
+            users = await User.filter(
+                is_active=True,
+                journal_medium="notion",
+                inactive_days_counter__in=reminder_days
+            )
+            return users
+        except Exception as e:
+            raise Exception(f"Database error fetching active Notion users: {e}")

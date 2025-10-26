@@ -21,3 +21,9 @@ async def schedule_deactivate_inactive_users(background_tasks: BackgroundTasks):
     background_tasks.add_task(BatchProcessor().process_user_deactivation)
     return {"message": "User deactivation process scheduled in background."}
 
+
+@router.post("/schedule/send-reminder-emails", dependencies=[Depends(verify_token)])
+async def schedule_send_reminder_emails(background_tasks: BackgroundTasks):
+    logger.info("Received request to schedule sending reminder emails.")
+    background_tasks.add_task(BatchProcessor().process_inactive_user_reminders_in_batches)
+    return {"message": "Sending reminder emails scheduled in background."}

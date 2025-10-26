@@ -48,8 +48,8 @@ class GenAIManager:
         return cls._client
 
     @classmethod
-    async def generate(cls, prompt: str, system_prompt: str = None):
-        model_name = os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash")
+    async def generate(cls, prompt: str, system_prompt: str = None, model_name: str = None):
+        model_name = model_name or os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash")
         client = cls._get_client()
 
         # Build config with system instruction if provided
@@ -93,6 +93,67 @@ class GenAIManager:
             pass
 
         return response.text
+    
+    @classmethod
+    async def generate_json(cls, prompt: str, system_prompt: str = None):
+        model_name = os.getenv("GOOGLE_GENAI_MODEL_REMINDER", "gemini-flash-latest")
+        client = cls._get_client()
+
+        # Build config with system instruction if provided
+        config_params = {
+            "temperature": 1.5,  # More creative temperature
+            "max_output_tokens": 3000,
+            "thinking_config": ThinkingConfig(
+                thinking_budget=3000,  # Automatic thinking budget
+            ),
+        }
+
+        if system_prompt:
+            config_params["system_instruction"] = [Part.from_text(text=system_prompt)]
+
+        config_params["response_mime_type"] = "application/json"
+        config_params["response_schema"] = genai.types.Schema(
+                type = genai.types.Type.OBJECT,
+                required = ["message", "subject"],
+                properties = {
+                    "message": genai.types.Schema(
+                        type = genai.types.Type.STRING,
+                    ),
+                    "subject": genai.types.Schema(
+                        type = genai.types.Type.STRING,
+                    ),
+                },
+            )
+
+        config = GenerateContentConfig(**config_params)
+
+        response = await client.models.generate_content(
+            model=model_name,
+            contents=[Content(role="user", parts=[Part.from_text(text=prompt)])],
+            config=config,
+        )
+
+        try:
+            # Check if response has candidates and log finish reason safely
+            if (hasattr(response, "candidates") and 
+                response.candidates and 
+                len(response.candidates) > 0 and 
+                hasattr(response.candidates[0], "finish_reason")):
+                logger.info(
+                    f"Generated response finish reason: {response.candidates[0].finish_reason}"
+                )
+
+            # Log usage metadata for monitoring
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                usage_meta = response.usage_metadata
+                logger.info(
+                    "Usage Metadata: %s", usage_meta.model_dump(exclude_none=True)
+                )
+        except Exception as e:
+            logger.warning(f"Error logging response metadata: {str(e)}")
+            pass
+
+        return response.parsed
 
     @classmethod
     async def generate_email_subject(cls, journal_entry: str, generated_reply: str) -> str:
@@ -112,12 +173,40 @@ class GenAIManager:
                 system_prompt = f.read()
             
             prompt = user_prompt_template.replace("{{user_entry}}", journal_entry).replace("{{reply_generated}}", generated_reply)
-
-            subject = await cls.generate(prompt, system_prompt)
+            model_name = os.getenv("GOOGLE_GENAI_MODEL_EMAIL_SUBJECT", "gemini-2.5-flash")
+            
+            subject = await cls.generate(prompt, system_prompt, model_name=model_name)
             return subject.strip() if subject else "Your Daily Motivational Message"
         except Exception as e:
             logger.error(f"Error generating email subject: {e}")
             return "Your Daily Motivational Message"
+        
+    @classmethod
+    async def generate_reminder_mail_data(cls, last_journal_entry: str = "", inactive_days: int = 0) -> tuple[str, str]:
+        """
+        Generates a reminder email info based on the last journal entry and inactive days.
+        """
+        try:
+            # Use absolute path based on current file location
+            base_dir = Path(__file__).parent.parent
+            subject_prompt_path = base_dir / "prompts" / "reminder_message_prompt.md"
+            system_prompt_path = base_dir / "prompts" / "reminder_message_system_prompt.md"
+
+            with open(subject_prompt_path, "r", encoding="utf-8") as f:
+                user_prompt_template = f.read()
+
+            with open(system_prompt_path, "r", encoding="utf-8") as f:
+                system_prompt = f.read()
+            
+            prompt = user_prompt_template.replace("{{user_entry}}", last_journal_entry).replace("{{inactive_days}}", str(inactive_days))
+
+            response = await cls.generate_json(prompt, system_prompt)
+            message = response["message"].strip() if "message" in response else "JurnAI misses you! It's been a while since your last journal entry. Remember, journaling can be a great way to reflect and stay motivated. I encourage you to write something today!"
+            subject = response["subject"].strip() if "subject" in response else "Long Time No Journalling :("
+            return message, subject
+        except Exception as e:
+            logger.error(f"Error generating reminder email message and subject: {e}")
+            raise
 
     @classmethod
     async def get_model_info(cls, model_name: str = None):

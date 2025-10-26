@@ -5,7 +5,8 @@ from managers.email_manager import EmailManager
 from managers.notion_module.notion_manager import NotionManager
 from managers.notion_integration_manager import NotionIntegrationManager
 from managers.user_manager import UserManager
-from exceptions.journal_exceptions import JournalDatabaseNotFound
+from exceptions.journal_exceptions import JournalDatabaseNotFound, JournalUnauthorized
+
 # from utils.database import get_db_connection
 
 import logging
@@ -14,6 +15,7 @@ import json
 import random
 import os
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -188,7 +190,7 @@ class JournalManager:
                     notion_token=notion_integration.access_token,
                     database_id=notion_integration.page_id
                 )
-            except JournalDatabaseNotFound as e:
+            except (JournalDatabaseNotFound, JournalUnauthorized) as e:
                 await self._handle_database_not_found(user)
                 return {"status": "Journal database not found", "message": None}
 
@@ -253,3 +255,67 @@ class JournalManager:
         except Exception as e:
             logger.error(f"Error handling database not found for user {user.id}: {str(e)}")
             raise  
+
+    async def get_last_journal_entry(self, user_id: int) -> Optional[dict]:
+        """
+        Retrieves the last journal entry for a given user.
+        """
+        try:
+            # 1. Get Notion integration details for the user asynchronously
+            notion_integration = await self.notion_integration_manager.get_integration_by_user_id(user_id)
+            if not notion_integration:
+                logger.info(f"No Notion integration found for user {user_id}. Skipping.")
+                return {"status": "No Notion integration found", "message": None}
+            
+            # print(f"Notion integration found for user {user.id}: {notion_integration}")  # Debugging output
+
+            notion_manager: NotionManager = NotionManager.get_manager_by_integration(notion_integration)
+
+            # 2. Fetch latest journal entry from Notion using user's credentials asynchronously
+            try:
+                journal_content = await notion_manager.get_last_journal_entry(
+                    notion_token=notion_integration.access_token,
+                    database_id=notion_integration.page_id
+                )
+            except JournalDatabaseNotFound as e:
+                logger.info(f"Journal database not found for user {user_id}: {e}")
+                return None
+
+            # print(f"Fetched journal content: {journal_content}")  # Debugging output
+
+            if not journal_content:
+                logger.info(f"Journal content not found for user {user_id} during reminder mails: {e}")
+                return None
+            
+            return journal_content
+        except Exception as e:
+            logger.error(f"Error retrieving last journal entry for user {user_id}: {e}")
+            return None
+        
+    async def send_reminder_email(self, user: User):
+        """
+        Sends reminder emails to users who have been inactive for a specified number of days.
+        """
+        try:
+            last_journal_entry = await self.get_last_journal_entry(user_id=user.id)
+            inactive_days = user.inactive_days_counter
+
+            journal_entry_str = JournalManager._truncate_journal_for_prompt(last_journal_entry, MAX_JOURNAL_LENGTH)
+            
+            reminder_message, email_subject = await GenAIManager.generate_reminder_mail_data(
+                last_journal_entry=journal_entry_str,
+                inactive_days=inactive_days
+            )
+
+            await EmailManager.send_motivational_email(
+                user.id, 
+                user.email, 
+                reminder_message, 
+                subject=email_subject,
+                greeting="Hey,", 
+                salutation="Miss You!"
+            )
+            logger.info(f"Sent reminder email to {user.email}")
+
+        except Exception as e:
+            logger.error(f"Error during sending reminder emails: {e}")
