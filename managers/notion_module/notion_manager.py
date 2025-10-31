@@ -1,5 +1,6 @@
 import os
 from notion_client import AsyncClient, APIResponseError, APIErrorCode
+from typing import Optional
 import logging
 from datetime import datetime, time, timezone, timedelta
 import httpx
@@ -26,7 +27,7 @@ class NotionManager:
 
     async def get_latest_journal_entry(
         self, notion_token: str, database_id: str
-    ) -> NotionJournalEntry | None:
+    ) -> Optional[NotionJournalEntry]:
         try:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
@@ -195,7 +196,7 @@ class NotionManager:
     
     async def get_last_journal_entry(
         self, notion_token: str, database_id: str
-    ) -> NotionJournalEntry | None:
+    ) -> Optional[NotionJournalEntry]:
         try:
             if not notion_token or not database_id:
                 raise Exception("Notion token or database ID not provided.")
