@@ -1,17 +1,19 @@
+import os
+import json
+import logging
+
 from typing import Optional
 from datetime import datetime, date, timedelta
-
-from models.models import User, UserPydantic
 from tortoise.exceptions import DoesNotExist, IntegrityError
 
-import os
-from dotenv import load_dotenv
+from models.models import User, UserPydantic
 
-# Load environment variables
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 class UserManager:
+    DEFAULT_INACTIVITY_INTERVALS = [1,3,5]
+
     async def create_user(self, user_data: UserPydantic) -> UserPydantic:
         try:
             user = await User.create(
@@ -127,8 +129,21 @@ class UserManager:
 
     async def get_recently_active_notion_users(self) -> list[User]:
         try:
-            reminder_days = int(os.environ.get("REMINDER_EMAIL_DAYS", [1, 3, 5]))
-            
+            reminder_days = []
+            try:
+                reminder_days_str = os.environ.get("REMINDER_EMAIL_DAYS")
+                
+                if reminder_days_str:
+                    reminder_days = json.loads(reminder_days_str)
+                else:
+                    reminder_days = self.DEFAULT_INACTIVITY_INTERVALS
+
+                if not isinstance(reminder_days, list):
+                    reminder_days = self.DEFAULT_INACTIVITY_INTERVALS
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("Invalid REMINDER_EMAIL_DAYS format. Using default intervals.")
+                reminder_days = self.DEFAULT_INACTIVITY_INTERVALS
+
             users = await User.filter(
                 is_active=True,
                 journal_medium="notion",
