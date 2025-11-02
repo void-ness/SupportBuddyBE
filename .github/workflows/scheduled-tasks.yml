@@ -56,10 +56,12 @@ jobs:
       FERNET_KEY: ${{ secrets.FERNET_KEY }}
       
       # Google GenAI Configuration
-      GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+      GOOGLE_GENAI_API_KEY: ${{ secrets.GOOGLE_GENAI_API_KEY }}
       GOOGLE_GENAI_MODEL: ${{ secrets.GOOGLE_GENAI_MODEL }}
       
       # Configuration
+      ENV: ${{ secrets.ENV }}
+      REMINDER_EMAIL_DAYS: ${{ secrets.REMINDER_EMAIL_DAYS }}
       INACTIVITY_THRESHOLD_DAYS: 30
     
     steps:
