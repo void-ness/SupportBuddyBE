@@ -1,9 +1,6 @@
 name: Serverless Journal Processing
 
 on:
-  # Run on push to any branch (for testing and visibility)
-  push:
-    branches: [ "feature/serverless" ]  # Trigger on push to any branch
   # Run daily at 8:00 AM UTC (adjust timezone as needed)
   schedule:
     - cron: '0 8 * * *'  # Daily at 8:00 AM UTC
@@ -37,6 +34,7 @@ jobs:
           fi
 
   run-scheduled-tasks:
+    environment: production
     needs: setup
     runs-on: ubuntu-latest
     strategy:
