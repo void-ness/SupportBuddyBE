@@ -1,0 +1,143 @@
+name: Serverless Journal Processing
+
+on:
+  # Run daily at 8:00 AM UTC (adjust timezone as needed)
+  schedule:
+    - cron: '0 8 * * *'  # Daily at 8:00 AM UTC
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      task_type:
+        description: 'Select task to run'
+        required: true
+        default: 'process-journals'
+        type: choice
+        options:
+          - process-journals
+          - deactivate-users
+          - send-reminders
+          - all-tasks
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set task matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.task_type }}" = "all-tasks" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo 'matrix=["process-journals", "deactivate-users", "send-reminders"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix=["${{ github.event.inputs.task_type }}"]' >> $GITHUB_OUTPUT
+          fi
+
+  run-scheduled-tasks:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        task: ${{ fromJson(needs.setup.outputs.matrix) }}
+      fail-fast: false  # Continue other tasks even if one fails
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "VIRTUAL_ENV=venv" >> $GITHUB_ENV
+          echo "$PWD/venv/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Environment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_CONNECTION_TYPE: ${{ secrets.DB_CONNECTION_TYPE }}
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+        run: |
+          echo "🔍 Verifying environment configuration..."
+          echo "✅ Database connection type: $DB_CONNECTION_TYPE"
+          echo "✅ Mailgun API configured: $([ -n "$MAILGUN_API_KEY" ] && echo "Yes" || echo "No")"
+          echo "✅ Google AI API configured: $([ -n "$GOOGLE_AI_API_KEY" ] && echo "Yes" || echo "No")"
+
+      - name: Process Notion Journals
+        if: matrix.task == 'process-journals'
+        env:
+          # Database Configuration
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_CONNECTION_TYPE: ${{ secrets.DB_CONNECTION_TYPE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          
+          # API Keys
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+        run: |
+          export TASK_TYPE=process-journals
+          python serverless_runner.py
+
+      - name: Deactivate Inactive Users
+        if: matrix.task == 'deactivate-users'
+        env:
+          # Database Configuration
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_CONNECTION_TYPE: ${{ secrets.DB_CONNECTION_TYPE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          
+          # Configuration
+          INACTIVITY_THRESHOLD_DAYS: 30
+        run: |
+          export TASK_TYPE=deactivate-users
+          python serverless_runner.py
+
+      - name: Send Reminder Emails
+        if: matrix.task == 'send-reminders'
+        env:
+          # Database Configuration
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_CONNECTION_TYPE: ${{ secrets.DB_CONNECTION_TYPE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          
+          # API Keys
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+        run: |
+          export TASK_TYPE=send-reminders
+          python serverless_runner.py
+
+      - name: Report Success
+        run: |
+          echo "✅ Task '${{ matrix.task }}' completed successfully"
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "❌ Task '${{ matrix.task }}' failed"
+          exit 1
