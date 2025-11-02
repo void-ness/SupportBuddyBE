@@ -5,8 +5,13 @@ def setup_logging():
     """
     Configures logging for the application, including SQL query logging.
     """
-    # Configure basic logging
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    # Configure basic logging with more detailed format
+    logging.basicConfig(
+        level=logging.INFO, 
+        stream=sys.stdout,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     # Configure Tortoise ORM query logging
     sql_debug_logger = logging.getLogger("tortoise.db_client")

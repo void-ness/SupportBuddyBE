@@ -6,6 +6,7 @@ This can be used for local testing or as a reference for the GitHub Actions work
 import asyncio
 import sys
 import os
+import logging
 from pathlib import Path
 
 # Add the current directory to Python path
@@ -13,6 +14,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from managers.batch_processor import BatchProcessor
 from utils.database import init_db, close_db_connection_pool
+from utils.logging_config import setup_logging
 
 
 async def run_process_journals():
@@ -57,6 +59,11 @@ async def run_send_reminders():
 async def main():
     """Main entry point for the serverless journal processing."""
     
+    # Initialize logging first
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("🔧 Serverless runner started - logging initialized")
+    
     # Check for required environment variables
     required_vars = [
         'DATABASE_URL',
@@ -73,11 +80,13 @@ async def main():
     # Get task type from environment or default to all tasks
     task_type = os.getenv('TASK_TYPE', 'all')
     
+    logger.info(f"🎯 Running task type: {task_type}")
     print(f"🎯 Running task type: {task_type}")
     
     try:
         # Initialize database connection
         await init_db()
+        logger.info("✅ Database connection initialized")
         print("✅ Database connection initialized")
         
         results = []
