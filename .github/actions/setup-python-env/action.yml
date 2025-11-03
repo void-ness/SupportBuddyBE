@@ -1,0 +1,29 @@
+name: 'Setup Python Environment'
+description: 'Set up Python with built-in caching and install dependencies'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.10'
+  force-rebuild:
+    description: 'Force cache rebuild (change this value to invalidate cache)'
+    required: false
+    default: 'v1'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python with built-in pip caching
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: 'pip'  # Built-in pip caching - simpler and more reliable
+        cache-dependency-path: |
+          requirements.txt
+          # Force rebuild token: ${{ inputs.force-rebuild }}
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
