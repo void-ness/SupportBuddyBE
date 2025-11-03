@@ -1,0 +1,77 @@
+name: Daily Journal Processing
+
+on:
+  # Run daily at 8:00 AM IST (2:30 AM UTC)
+  schedule:
+    - cron: '30 2 * * *'
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  process-journals:
+    environment: production
+    runs-on: ubuntu-latest
+    
+    env:
+      # Database Configuration
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_CONNECTION_TYPE: ${{ secrets.DB_CONNECTION_TYPE }}
+      
+      # API Keys
+      MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+      MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+            
+      # Encryption Key
+      FERNET_KEY: ${{ secrets.FERNET_KEY }}
+      
+      # Google GenAI Configuration
+      GOOGLE_GENAI_API_KEY: ${{ secrets.GOOGLE_GENAI_API_KEY }}
+      GOOGLE_GENAI_MODEL: ${{ secrets.GOOGLE_GENAI_MODEL }}
+      
+      # Configuration
+      ENV: ${{ secrets.ENV }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "VIRTUAL_ENV=venv" >> $GITHUB_ENV
+          echo "$PWD/venv/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Environment
+        run: |
+          echo "🔍 Verifying environment for daily journal processing..."
+          echo "✅ Database connection type: $DB_CONNECTION_TYPE"
+          echo "✅ Mailgun API configured: $([ -n "$MAILGUN_API_KEY" ] && echo "Yes" || echo "No")"
+          echo "✅ Google GenAI API configured: $([ -n "$GOOGLE_GENAI_API_KEY" ] && echo "Yes" || echo "No")"
+          echo "✅ Google GenAI Model: $GOOGLE_GENAI_MODEL"
+
+      - name: Process Notion Journals
+        run: |
+          echo "🌅 Starting daily journal processing at 8:00 AM IST..."
+          export TASK_TYPE=process-journals
+          python serverless_runner.py
+
+      - name: Report Success
+        run: |
+          echo "✅ Daily journal processing completed successfully!"
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "❌ Daily journal processing failed!"
+          exit 1

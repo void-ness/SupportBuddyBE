@@ -69,7 +69,7 @@ async def main():
         'DATABASE_URL',
         'MAILGUN_API_KEY', 
         'MAILGUN_DOMAIN',
-        'GOOGLE_AI_API_KEY'
+        'GOOGLE_GENAI_API_KEY'
     ]
     
     missing_vars = [var for var in required_vars if not os.getenv(var)]

@@ -1,0 +1,68 @@
+name: Weekly User Cleanup
+
+on:
+  # Run weekly on Sundays at 6:00 AM IST (12:30 AM UTC)
+  schedule:
+    - cron: '30 0 * * 0'  # Every Sunday
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  deactivate-users:
+    environment: production
+    runs-on: ubuntu-latest
+    
+    env:
+      # Database Configuration
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_CONNECTION_TYPE: ${{ secrets.DB_CONNECTION_TYPE }}
+            
+      # Encryption Key
+      FERNET_KEY: ${{ secrets.FERNET_KEY }}
+      
+      # Configuration
+      ENV: ${{ secrets.ENV }}
+      INACTIVITY_THRESHOLD_DAYS: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "VIRTUAL_ENV=venv" >> $GITHUB_ENV
+          echo "$PWD/venv/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Environment
+        run: |
+          echo "🔍 Verifying environment for user cleanup..."
+          echo "✅ Database connection type: $DB_CONNECTION_TYPE"
+          echo "✅ Inactivity threshold: $INACTIVITY_THRESHOLD_DAYS days"
+
+      - name: Deactivate Inactive Users
+        run: |
+          echo "🧹 Starting weekly user cleanup (Sunday 6:00 AM IST)..."
+          export TASK_TYPE=deactivate-users
+          python serverless_runner.py
+
+      - name: Report Success
+        run: |
+          echo "✅ Weekly user cleanup completed successfully!"
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "❌ Weekly user cleanup failed!"
+          exit 1
