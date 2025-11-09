@@ -21,6 +21,7 @@ __pycache__/
 
 #python version file
 /.python-version
+src/backend.egg-info
 
 #testing files
 demo.py

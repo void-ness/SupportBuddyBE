@@ -1,0 +1,8 @@
+# Minimal requirements for serverless_runner.py
+# This file is kept for compatibility, but uv will use pyproject.toml [project.optional-dependencies.serverless]
+python-dotenv==1.0.1
+tortoise-orm
+asyncpg
+google-genai
+httpx
+notion-client==2.4.0
