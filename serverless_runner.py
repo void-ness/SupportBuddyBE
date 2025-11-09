@@ -8,6 +8,7 @@ import sys
 import os
 import logging
 from pathlib import Path
+from typing import List
 
 # Add the current directory to Python path
 sys.path.append(str(Path(__file__).parent))
@@ -56,6 +57,65 @@ async def run_send_reminders():
         return False
 
 
+def get_required_env_vars_for_task(task_type: str) -> List[str]:
+    """
+    Get the list of required environment variables based on the task type.
+    
+    Args:
+        task_type: The type of task to run ('process-journals', 'deactivate-users', 
+                  'send-reminders', or 'all')
+    
+    Returns:
+        List of required environment variable names
+    """
+    # Base requirements - all tasks need database access
+    base_vars = ['DATABASE_URL']
+    
+    # Task-specific environment variable requirements
+    task_env_vars = {
+        'process-journals': ['MAILGUN_API_KEY', 'MAILGUN_DOMAIN', 'GOOGLE_GENAI_API_KEY'],
+        'deactivate-users': [],  # Only needs base vars
+        'send-reminders': ['MAILGUN_API_KEY', 'MAILGUN_DOMAIN', 'GOOGLE_GENAI_API_KEY'],
+    }
+    
+    if task_type == 'all':
+        # Combine all unique variables from all task types
+        all_task_vars = set()
+        for task_vars in task_env_vars.values():
+            all_task_vars.update(task_vars)
+        return base_vars + list(all_task_vars)
+    elif task_type in task_env_vars:
+        # Return base vars + task-specific vars
+        return base_vars + task_env_vars[task_type]
+    else:
+        # Unknown task type, require all variables for safety
+        all_task_vars = set()
+        for task_vars in task_env_vars.values():
+            all_task_vars.update(task_vars)
+        return base_vars + list(all_task_vars)
+
+
+def validate_required_env_vars(task_type: str) -> bool:
+    """
+    Validate that all required environment variables are set for the given task type.
+    
+    Args:
+        task_type: The type of task to run
+    
+    Returns:
+        True if all required variables are set, False otherwise
+    """
+    required_vars = get_required_env_vars_for_task(task_type)
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing_vars:
+        print(f"❌ Missing required environment variables for task '{task_type}': {', '.join(missing_vars)}")
+        return False
+    
+    print(f"✅ All required environment variables are set for task '{task_type}'")
+    return True
+
+
 async def main():
     """Main entry point for the serverless journal processing."""
     
@@ -64,21 +124,12 @@ async def main():
     logger = logging.getLogger(__name__)
     logger.info("🔧 Serverless runner started - logging initialized")
     
-    # Check for required environment variables
-    required_vars = [
-        'DATABASE_URL',
-        'MAILGUN_API_KEY', 
-        'MAILGUN_DOMAIN',
-        'GOOGLE_GENAI_API_KEY'
-    ]
-    
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    if missing_vars:
-        print(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
-        sys.exit(1)
-    
     # Get task type from environment or default to all tasks
     task_type = os.getenv('TASK_TYPE', 'all')
+    
+    # Validate required environment variables for the specific task type
+    if not validate_required_env_vars(task_type):
+        sys.exit(1)
     
     logger.info(f"🎯 Running task type: {task_type}")
     print(f"🎯 Running task type: {task_type}")
