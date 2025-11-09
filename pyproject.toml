@@ -35,14 +35,6 @@ dev = [
     "isort",
     "flake8",
 ]
-serverless = [
-    "python-dotenv==1.0.1",
-    "tortoise-orm",
-    "asyncpg",
-    "google-genai",
-    "httpx",
-    "notion-client==2.4.0",
-]
 
 [dependency-groups]
 dev = [
@@ -51,6 +43,14 @@ dev = [
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
+]
+serverless = [
+    "python-dotenv==1.0.1",
+    "tortoise-orm",
+    "asyncpg",
+    "google-genai",
+    "httpx",
+    "notion-client==2.4.0",
 ]
 
 [tool.black]
