@@ -1,7 +1,7 @@
 name: Evening Reminder Emails
 
 on:
-  # Run daily at 8:00 PM IST (2:30 PM UTC)
+  # Run at 8:00 PM IST (2:30 PM UTC)
   schedule:
     - cron: '30 14 * * *'
   # Allow manual triggering
@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "🌆 Starting evening reminder emails at 8:00 PM IST..."
           export TASK_TYPE=send-reminders
-          python serverless_runner.py
+          python src/serverless_runner.py
 
       - name: Report Success
         run: |

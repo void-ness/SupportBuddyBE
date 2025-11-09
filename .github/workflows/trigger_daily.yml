@@ -1,7 +1,7 @@
 name: Daily Journal Processing
 
 on:
-  # Run daily at 8:00 AM IST (2:30 AM UTC)
+  # Run at 8:00 AM IST (2:30 AM UTC) 
   schedule:
     - cron: '30 2 * * *'
   # Allow manual triggering
@@ -48,9 +48,9 @@ jobs:
 
       - name: Process Notion Journals
         run: |
-          echo "🌅 Starting daily journal processing at 8:00 AM IST..."
+          echo "🌅 Starting daily journal processing..."
           export TASK_TYPE=process-journals
-          python serverless_runner.py
+          python src/serverless_runner.py
 
       - name: Report Success
         run: |

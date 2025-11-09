@@ -83,19 +83,19 @@ jobs:
         if: matrix.task == 'process-journals'
         run: |
           export TASK_TYPE=process-journals
-          python serverless_runner.py
+          python src/serverless_runner.py
 
       - name: Deactivate Inactive Users
         if: matrix.task == 'deactivate-users'
         run: |
           export TASK_TYPE=deactivate-users
-          python serverless_runner.py
+          python src/serverless_runner.py
 
       - name: Send Reminder Emails
         if: matrix.task == 'send-reminders'
         run: |
           export TASK_TYPE=send-reminders
-          python serverless_runner.py
+          python src/serverless_runner.py
 
       - name: Report Success
         run: |

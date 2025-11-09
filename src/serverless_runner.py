@@ -10,9 +10,6 @@ import logging
 from pathlib import Path
 from typing import List
 
-# Add the current directory to Python path
-sys.path.append(str(Path(__file__).parent))
-
 from managers.batch_processor import BatchProcessor
 from utils.database import init_db, close_db_connection_pool
 from utils.logging_config import setup_logging

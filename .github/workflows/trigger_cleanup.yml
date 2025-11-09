@@ -41,7 +41,7 @@ jobs:
         run: |
           echo "🧹 Starting weekly user cleanup (Sunday 6:00 AM IST)..."
           export TASK_TYPE=deactivate-users
-          python serverless_runner.py
+          python src/serverless_runner.py
 
       - name: Report Success
         run: |
