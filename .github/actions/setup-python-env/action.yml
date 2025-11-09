@@ -1,5 +1,5 @@
-name: 'Setup Python Environment'
-description: 'Set up Python with built-in caching and install dependencies'
+name: 'Setup Python Environment with UV'
+description: 'Set up Python with UV for fast dependency installation'
 inputs:
   python-version:
     description: 'Python version to use'
@@ -9,21 +9,36 @@ inputs:
     description: 'Force cache rebuild (change this value to invalidate cache)'
     required: false
     default: 'v1'
+  dependency-group:
+    description: 'Dependency group to install (default: all, options: dev, serverless)'
+    required: false
+    default: 'serverless'
 
 runs:
   using: 'composite'
   steps:
-    - name: Set up Python with built-in pip caching
+    - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-        cache: 'pip'  # Built-in pip caching - simpler and more reliable
-        cache-dependency-path: |
+
+    - name: Install UV
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+        enable-cache: true
+        cache-dependency-glob: |
+          pyproject.toml
           requirements.txt
           # Force rebuild token: ${{ inputs.force-rebuild }}
 
     - name: Install dependencies
       shell: bash
       run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
+        if [ "${{ inputs.dependency-group }}" = "dev" ]; then
+          uv pip install -e .[dev]
+        elif [ "${{ inputs.dependency-group }}" = "serverless" ]; then
+          uv pip install -e .[serverless]
+        else
+          uv pip install -e .
+        fi
