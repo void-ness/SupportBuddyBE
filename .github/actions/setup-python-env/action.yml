@@ -27,10 +27,17 @@ runs:
       with:
         version: "latest"
         enable-cache: true
+        cache-local-path: ~/.cache/uv
         cache-dependency-glob: |
           pyproject.toml
           requirements.txt
-        cache-suffix: ${{ inputs.force-rebuild }}
+        cache-suffix: ${{ inputs.dependency-group }}-${{ inputs.force-rebuild }}
+
+    - name: Cache UV binary
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/uv
+        key: uv-${{ runner.os }}-${{ runner.arch }}-latest
 
     - name: Install dependencies
       shell: bash
