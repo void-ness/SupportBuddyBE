@@ -1,5 +1,5 @@
-name: 'Setup Python Environment with UV'
-description: 'Set up Python with UV for fast dependency installation'
+name: 'Setup Python Environment with Pip'
+description: 'Set up Python with pip for reliable dependency installation'
 inputs:
   python-version:
     description: 'Python version to use'
@@ -21,33 +21,19 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-
-    - name: Install UV
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
-        enable-cache: true
-        cache-local-path: ~/.cache/uv
-        cache-dependency-glob: |
-          pyproject.toml
+        cache: 'pip'
+        cache-dependency-path: |
           requirements.txt
-        cache-suffix: ${{ inputs.dependency-group }}-${{ inputs.force-rebuild }}
-
-    - name: Cache UV binary
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/bin/uv
-        key: uv-${{ runner.os }}-${{ runner.arch }}-latest
+          serverless_requirements.txt
 
     - name: Install dependencies
       shell: bash
       run: |
-        if [ "${{ inputs.dependency-group }}" = "dev" ]; then
-          uv pip install -e . --group dev --system
-        elif [ "${{ inputs.dependency-group }}" = "web" ]; then
-          uv pip install -e . --group web --system
+        python -m pip install --upgrade pip
+        if [ "${{ inputs.dependency-group }}" = "web" ]; then
+          pip install -r requirements.txt
         elif [ "${{ inputs.dependency-group }}" = "serverless" ]; then
-          uv pip install -e . --group serverless --system
+          pip install -r serverless_requirements.txt
         else
-          uv pip install -e . --system
+          pip install -r requirements.txt
         fi
