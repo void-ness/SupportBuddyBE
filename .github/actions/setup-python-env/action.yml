@@ -10,9 +10,9 @@ inputs:
     required: false
     default: 'v1'
   dependency-group:
-    description: 'Dependency group to install (default: all, options: dev, serverless)'
+    description: 'Dependency group to install (default: all, options: dev, web, serverless)'
     required: false
-    default: 'serverless'
+    default: 'web'
 
 runs:
   using: 'composite'
@@ -30,13 +30,15 @@ runs:
         cache-dependency-glob: |
           pyproject.toml
           requirements.txt
-          # Force rebuild token: ${{ inputs.force-rebuild }}
+        cache-suffix: ${{ inputs.force-rebuild }}
 
     - name: Install dependencies
       shell: bash
       run: |
         if [ "${{ inputs.dependency-group }}" = "dev" ]; then
           uv pip install -e . --group dev --system
+        elif [ "${{ inputs.dependency-group }}" = "web" ]; then
+          uv pip install -e . --group web --system
         elif [ "${{ inputs.dependency-group }}" = "serverless" ]; then
           uv pip install -e . --group serverless --system
         else

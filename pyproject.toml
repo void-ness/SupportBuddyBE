@@ -12,19 +12,13 @@ authors = [
 ]
 requires-python = ">=3.10.5"
 dependencies = [
-    "fastapi==0.111.0",
     "python-dotenv==1.0.1",
-    "uvicorn==0.30.1",
-    "notion-client==2.4.0",
-    "passlib[bcrypt]==1.7.4",
-    "python-jose[cryptography]==3.3.0",
-    "cryptography==42.0.7",
     "python-decouple==3.8",
     "httpx",
     "google-genai",
     "asyncpg",
     "tortoise-orm",
-    "hypercorn",
+    "notion-client==2.4.0",
 ]
 
 [project.optional-dependencies]
@@ -44,13 +38,17 @@ dev = [
     "isort>=5.12.0",
     "flake8>=6.0.0",
 ]
+web = [
+    "fastapi==0.111.0",
+    "uvicorn==0.30.1",
+    "passlib[bcrypt]==1.7.4",
+    "python-jose[cryptography]==3.3.0",
+    "cryptography==42.0.7",
+    "hypercorn",
+]
 serverless = [
-    "python-dotenv==1.0.1",
-    "tortoise-orm",
-    "asyncpg",
-    "google-genai",
-    "httpx",
-    "notion-client==2.4.0",
+    # All serverless dependencies are already in base dependencies
+    # This group exists for semantic clarity and future serverless-specific packages
 ]
 
 [tool.black]
