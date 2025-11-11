@@ -12,7 +12,7 @@ inputs:
   dependency-group:
     description: 'Dependency group to install (default: all, options: dev, web, serverless)'
     required: false
-    default: 'web'
+    default: 'serverless'
 
 runs:
   using: 'composite'
