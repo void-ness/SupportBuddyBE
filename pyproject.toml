@@ -19,6 +19,8 @@ dependencies = [
     "asyncpg",
     "tortoise-orm",
     "notion-client==2.4.0",
+    "python-jose[cryptography]==3.3.0",
+    "cryptography==42.0.7",
 ]
 
 [project.optional-dependencies]
