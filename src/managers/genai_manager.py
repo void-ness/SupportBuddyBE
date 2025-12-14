@@ -1,16 +1,11 @@
-from google import genai
-from google.genai.types import (
-    GenerateContentConfig,
-    HttpOptions,
-    HttpRetryOptions,
-    ThinkingConfig,
-    Part,
-    Content,
-)
 import os
-from dotenv import load_dotenv
 import logging
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+from managers.genai_providers import GenAIProviderName, get_provider
+from managers.genai_providers.base import GenerationParams
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -20,143 +15,79 @@ load_dotenv()
 
 
 class GenAIManager:
-    _client = None
+    """Facade for generating text/JSON using a selected LLM provider.
+
+    You can choose the provider at call-site using `provider="google"` or
+    `provider="amazon"` (Bedrock).
+
+    If omitted, provider falls back to `GENAI_PROVIDER` env var, then "google".
+    """
 
     @classmethod
-    def _get_client(cls):
-        if cls._client is None:
-            api_key = os.getenv("GOOGLE_GENAI_API_KEY")
-
-            # Configure HTTP options with retry and timeout settings
-            retry_options = HttpRetryOptions(
-                attempts=3,  # Maximum number of attempts (including original)
-                initial_delay=1.0,  # Initial delay in seconds
-                max_delay=10.0,  # Maximum delay in seconds
-                exp_base=2.0,  # Exponential backoff multiplier
-                jitter=0.1,  # Randomness factor for delay
-            )
-
-            http_options = HttpOptions(
-                timeout=60 * 1000,  # 60 seconds (in ms) timeout
-                retry_options=retry_options,
-                api_version="v1beta",
-            )
-
-            # Create a regular client first, then access its async client
-            sync_client = genai.Client(api_key=api_key, http_options=http_options)
-            cls._client = sync_client.aio
-        return cls._client
+    def _resolve_provider(cls, provider: GenAIProviderName | None) -> GenAIProviderName:
+        if provider:
+            return provider
+        return os.getenv("GENAI_PROVIDER", "google")  # type: ignore[return-value]
 
     @classmethod
-    async def generate(cls, prompt: str, system_prompt: str = None, model_name: str = None):
-        model_name = model_name or os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash")
-        client = cls._get_client()
+    async def generate(
+        cls,
+        prompt: str,
+        system_prompt: str = None,
+        model_name: str = None,
+        provider: GenAIProviderName | None = None,
+    ):
+        provider_name = cls._resolve_provider(provider)
+        provider_impl = get_provider(provider_name)
 
-        # Build config with system instruction if provided
-        config_params = {
-            "temperature": 1.5,  # More creative temperature
-            "max_output_tokens": 3000,
-            "thinking_config": ThinkingConfig(
-                thinking_budget=3000,  # Automatic thinking budget
-            ),
-        }
-
-        if system_prompt:
-            config_params["system_instruction"] = [Part.from_text(text=system_prompt)]
-
-        config = GenerateContentConfig(**config_params)
-
-        response = await client.models.generate_content(
-            model=model_name,
-            contents=[Content(role="user", parts=[Part.from_text(text=prompt)])],
-            config=config,
+        text = await provider_impl.generate_text(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            model_name=model_name,
+            params=GenerationParams(temperature=1.5, max_output_tokens=3000),
         )
-
-        try:
-            # Check if response has candidates and log finish reason safely
-            if (hasattr(response, "candidates") and 
-                response.candidates and 
-                len(response.candidates) > 0 and 
-                hasattr(response.candidates[0], "finish_reason")):
-                logger.info(
-                    f"Generated response finish reason: {response.candidates[0].finish_reason}"
-                )
-
-            # Log usage metadata for monitoring
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                usage_meta = response.usage_metadata
-                logger.info(
-                    "Usage Metadata: %s", usage_meta.model_dump(exclude_none=True)
-                )
-        except Exception as e:
-            logger.warning(f"Error logging response metadata: {str(e)}")
-            pass
-
-        return response.text
+        return text
     
     @classmethod
-    async def generate_json(cls, prompt: str, system_prompt: str = None):
-        model_name = os.getenv("GOOGLE_GENAI_MODEL_REMINDER", "gemini-flash-latest")
-        client = cls._get_client()
+    async def generate_json(
+        cls,
+        prompt: str,
+        system_prompt: str = None,
+        provider: GenAIProviderName | None = None,
+        model_name: str | None = None,
+    ):
+        provider_name = cls._resolve_provider(provider)
+        provider_impl = get_provider(provider_name)
 
-        # Build config with system instruction if provided
-        config_params = {
-            "temperature": 1.5,  # More creative temperature
-            "max_output_tokens": 3000,
-            "thinking_config": ThinkingConfig(
-                thinking_budget=3000,  # Automatic thinking budget
-            ),
-        }
-
-        if system_prompt:
-            config_params["system_instruction"] = [Part.from_text(text=system_prompt)]
-
-        config_params["response_mime_type"] = "application/json"
-        config_params["response_schema"] = genai.types.Schema(
-                type = genai.types.Type.OBJECT,
-                required = ["message", "subject"],
-                properties = {
-                    "message": genai.types.Schema(
-                        type = genai.types.Type.STRING,
-                    ),
-                    "subject": genai.types.Schema(
-                        type = genai.types.Type.STRING,
-                    ),
-                },
+        # Default reminder model is provider-specific; for google keep existing env var.
+        if provider_name == "google":
+            model_name = model_name or os.getenv(
+                "GOOGLE_GENAI_MODEL_REMINDER", "gemini-flash-latest"
             )
 
-        config = GenerateContentConfig(**config_params)
-
-        response = await client.models.generate_content(
-            model=model_name,
-            contents=[Content(role="user", parts=[Part.from_text(text=prompt)])],
-            config=config,
+        parsed = await provider_impl.generate_json(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            model_name=model_name,
+            schema={
+                "type": "object",
+                "required": ["message", "subject"],
+                "properties": {
+                    "message": {"type": "string"},
+                    "subject": {"type": "string"},
+                },
+            },
+            params=GenerationParams(temperature=1.5, max_output_tokens=3000),
         )
-
-        try:
-            # Check if response has candidates and log finish reason safely
-            if (hasattr(response, "candidates") and 
-                response.candidates and 
-                len(response.candidates) > 0 and 
-                hasattr(response.candidates[0], "finish_reason")):
-                logger.info(
-                    f"Generated response finish reason: {response.candidates[0].finish_reason}"
-                )
-
-            # Log usage metadata for monitoring
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                usage_meta = response.usage_metadata
-                logger.info(
-                    "Usage Metadata: %s", usage_meta.model_dump(exclude_none=True)
-                )
-        except Exception as e:
-            logger.warning(f"Error logging response metadata: {str(e)}")
-            pass
-
-        return response.parsed
+        return parsed
 
     @classmethod
-    async def generate_email_subject(cls, journal_entry: str, generated_reply: str) -> str:
+    async def generate_email_subject(
+        cls,
+        journal_entry: str,
+        generated_reply: str,
+        provider: GenAIProviderName | None = None,
+    ) -> str:
         """
         Generates a catchy email subject based on the journal entry.
         """
@@ -173,16 +104,28 @@ class GenAIManager:
                 system_prompt = f.read()
             
             prompt = user_prompt_template.replace("{{user_entry}}", journal_entry).replace("{{reply_generated}}", generated_reply)
-            model_name = os.getenv("GOOGLE_GENAI_MODEL_EMAIL_SUBJECT", "gemini-2.5-flash")
+            model_name = None
+            if cls._resolve_provider(provider) == "google":
+                model_name = os.getenv("GOOGLE_GENAI_MODEL_EMAIL_SUBJECT", "gemini-2.5-flash")
             
-            subject = await cls.generate(prompt, system_prompt, model_name=model_name)
+            subject = await cls.generate(
+                prompt,
+                system_prompt,
+                model_name=model_name,
+                provider=provider,
+            )
             return subject.strip() if subject else "Your Daily Motivational Message"
         except Exception as e:
             logger.error(f"Error generating email subject: {e}")
             return "Your Daily Motivational Message"
         
     @classmethod
-    async def generate_reminder_mail_data(cls, last_journal_entry: str = "", inactive_days: int = 0) -> tuple[str, str]:
+    async def generate_reminder_mail_data(
+        cls,
+        last_journal_entry: str = "",
+        inactive_days: int = 0,
+        provider: GenAIProviderName | None = None,
+    ) -> tuple[str, str]:
         """
         Generates a reminder email info based on the last journal entry and inactive days.
         """
@@ -200,7 +143,11 @@ class GenAIManager:
             
             prompt = user_prompt_template.replace("{{user_entry}}", last_journal_entry).replace("{{inactive_days}}", str(inactive_days))
 
-            response = await cls.generate_json(prompt, system_prompt)
+            response = await cls.generate_json(
+                prompt,
+                system_prompt,
+                provider=provider,
+            )
             message = response["message"].strip() if "message" in response else "JurnAI misses you! It's been a while since your last journal entry. Remember, journaling can be a great way to reflect and stay motivated. I encourage you to write something today!"
             subject = response["subject"].strip() if "subject" in response else "Long Time No Journalling :("
             return message, subject
@@ -211,20 +158,33 @@ class GenAIManager:
     @classmethod
     async def get_model_info(cls, model_name: str = None):
         """Get information about the GenAI model"""
+        # Provider-specific model introspection is only implemented for Google for now.
+        provider_name = cls._resolve_provider(None)
+        if provider_name != "google":
+            return {
+                "provider": provider_name,
+                "model_name": model_name or os.getenv("BEDROCK_MODEL_ID"),
+                "note": "Model introspection not supported for this provider yet.",
+            }
+
+        # Lazy import to keep non-google deployments light.
+        from managers.genai_providers.google_provider import GoogleGenAIProvider
+
         if model_name is None:
             model_name = os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash")
 
-        client = cls._get_client()
+        client = GoogleGenAIProvider._get_client()
 
         try:
-            # Get model details
             model_info = await client.models.get(model=model_name)
             return {
+                "provider": provider_name,
                 "model_name": model_name,
                 "model_info": model_info.model_dump(exclude_none=True),
             }
         except Exception as e:
             return {
+                "provider": provider_name,
                 "model_name": model_name,
                 "error": str(e),
                 "available_models": await cls._get_available_models(),
@@ -233,8 +193,14 @@ class GenAIManager:
     @classmethod
     async def _get_available_models(cls):
         """Get list of available models"""
+        provider_name = cls._resolve_provider(None)
+        if provider_name != "google":
+            return ["Model listing not supported for this provider"]
+
         try:
-            client = cls._get_client()
+            from managers.genai_providers.google_provider import GoogleGenAIProvider
+
+            client = GoogleGenAIProvider._get_client()
             models = await client.models.list()
             return [model.name for model in models]
         except Exception as e:

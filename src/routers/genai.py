@@ -10,11 +10,18 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/model-info")
-async def get_model_info(model_name: str = None):
+async def get_model_info(model_name: str = None, provider: str = None):
     """
     Get information about the GenAI model.
     """
     try:
+        # Note: model introspection is provider-specific.
+        if provider:
+            # Temporarily set provider through env-like resolution by calling generate with provider,
+            # while `get_model_info` currently introspects env-default provider.
+            # If you need full provider-aware introspection, we'll extend GenAIManager.get_model_info.
+            os.environ["GENAI_PROVIDER"] = provider
+
         info = await GenAIManager.get_model_info(model_name)
         return {
             "environment": os.getenv('ENVIRONMENT', 'production'),
@@ -26,11 +33,13 @@ async def get_model_info(model_name: str = None):
         raise HTTPException(status_code=500, detail=f"Failed to fetch model info: {e}")
 
 @router.get("/available-models")
-async def get_available_models():
+async def get_available_models(provider: str = None):
     """
     Get list of available GenAI models.
     """
     try:
+        if provider:
+            os.environ["GENAI_PROVIDER"] = provider
         models = await GenAIManager._get_available_models()
         return {
             "environment": os.getenv('ENVIRONMENT', 'production'),
@@ -41,12 +50,12 @@ async def get_available_models():
         raise HTTPException(status_code=500, detail=f"Failed to fetch available models: {e}")
 
 @router.post("/test-generate")
-async def test_generate(prompt: str, system_prompt: str = None):
+async def test_generate(prompt: str, system_prompt: str = None, provider: str = None):
     """
     Test text generation with the GenAI model.
     """
     try:
-        response = await GenAIManager.generate(prompt, system_prompt)
+        response = await GenAIManager.generate(prompt, system_prompt, provider=provider)
         return {
             "model_used": os.getenv('GOOGLE_GENAI_MODEL', 'gemini-2.5-flash'),
             "prompt": prompt,

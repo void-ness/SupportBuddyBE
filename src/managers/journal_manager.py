@@ -17,6 +17,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from managers.genai_providers.base import GenAIProviderName
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -108,7 +110,11 @@ class JournalManager:
         return json.dumps(journal_data, indent=2)
 
     @staticmethod
-    async def generate_motivational_message(journal_content: NotionJournalEntry, streak: int = 0) -> str:
+    async def generate_motivational_message(
+        journal_content: NotionJournalEntry,
+        streak: int = 0,
+        provider: GenAIProviderName | None = None,
+    ) -> str:
         final_prompt = JournalManager._truncate_journal_for_prompt(
             journal_content, MAX_JOURNAL_LENGTH
         )
@@ -137,8 +143,9 @@ class JournalManager:
         for attempt in range(GENAI_MAX_RETRIES + 1):  # Initial attempt + retries
             try:
                 message = await GenAIManager.generate(
-                    prompt=final_prompt, 
-                    system_prompt=system_prompt
+                    prompt=final_prompt,
+                    system_prompt=system_prompt,
+                    provider=provider,
                 )
                 
                 # Check if message is empty or None
@@ -212,7 +219,12 @@ class JournalManager:
             await user.refresh_from_db(fields=["streak"])
 
             # 3. Generate motivational message asynchronously
-            motivational_message = await JournalManager.generate_motivational_message(journal_content, streak=user.streak)
+            # You can choose provider per call. Example: provider="amazon" to use Bedrock.
+            motivational_message = await JournalManager.generate_motivational_message(
+                journal_content,
+                streak=user.streak,
+                provider=None,
+            )
             
             # Validate that we have a valid message before sending email
             if not motivational_message or not motivational_message.strip():
@@ -223,7 +235,8 @@ class JournalManager:
             journal_entry_str = JournalManager._truncate_journal_for_prompt(journal_content, MAX_JOURNAL_LENGTH)
             email_subject = await GenAIManager.generate_email_subject(
                 journal_entry=journal_entry_str,
-                generated_reply=motivational_message
+                generated_reply=motivational_message,
+                provider=None,
             )
             
             # 5. Send email to the user asynchronously
@@ -304,7 +317,8 @@ class JournalManager:
             
             reminder_message, email_subject = await GenAIManager.generate_reminder_mail_data(
                 last_journal_entry=journal_entry_str,
-                inactive_days=inactive_days
+                inactive_days=inactive_days,
+                provider=None,
             )
 
             await EmailManager.send_motivational_email(

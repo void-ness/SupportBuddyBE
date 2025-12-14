@@ -8,6 +8,7 @@ cryptography==42.0.7
 python-decouple==3.8
 httpx
 google-genai
+boto3
 asyncpg
 tortoise-orm
 hypercorn
