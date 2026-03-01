@@ -40,7 +40,7 @@ class GoogleGenAIProvider(GenAIProvider):
             http_options = HttpOptions(
                 timeout=60 * 1000,
                 retry_options=retry_options,
-                api_version="v1beta",
+                api_version="v1",
             )
 
             sync_client = genai.Client(api_key=api_key, http_options=http_options)

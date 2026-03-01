@@ -27,6 +27,10 @@ jobs:
       # Google GenAI Configuration
       GOOGLE_GENAI_API_KEY: ${{ secrets.GOOGLE_GENAI_API_KEY }}
       GOOGLE_GENAI_MODEL: ${{ secrets.GOOGLE_GENAI_MODEL }}
+      GOOGLE_GENAI_MODEL_EMAIL_SUBJECT: ${{ secrets.GOOGLE_GENAI_MODEL_EMAIL_SUBJECT }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
+      GOOGLE_GENAI_USE_VERTEXAI: ${{ secrets.GOOGLE_GENAI_USE_VERTEXAI }}
       
       # Configuration
       ENV: ${{ secrets.ENV }}
