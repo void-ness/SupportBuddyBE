@@ -50,6 +50,11 @@ jobs:
           echo "✅ Google GenAI API configured: $([ -n "$GOOGLE_GENAI_API_KEY" ] && echo "Yes" || echo "No")"
           echo "✅ Google GenAI Model: $GOOGLE_GENAI_MODEL"
 
+      - name: Authenticate GCP
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' > sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=sa.json" >> $GITHUB_ENV
+
       - name: Process Notion Journals
         run: |
           echo "🌅 Starting daily journal processing..."
